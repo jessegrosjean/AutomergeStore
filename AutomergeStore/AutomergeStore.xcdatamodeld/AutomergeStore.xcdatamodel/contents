@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="DocumentMO" representedClassName="DocumentMO" syncable="YES" codeGenerationType="class">
+        <attribute name="created" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="incrementals" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="IncrementalMO" inverseName="document" inverseEntity="IncrementalMO"/>
+        <relationship name="snapshots" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SnapshotMO" inverseName="document" inverseEntity="SnapshotMO"/>
+    </entity>
+    <entity name="IncrementalMO" representedClassName="IncrementalMO" syncable="YES" codeGenerationType="class">
+        <attribute name="data" optional="YES" attributeType="Binary"/>
+        <relationship name="document" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="DocumentMO" inverseName="incrementals" inverseEntity="DocumentMO"/>
+    </entity>
+    <entity name="SnapshotMO" representedClassName="SnapshotMO" syncable="YES" codeGenerationType="class">
+        <attribute name="data" optional="YES" attributeType="Binary"/>
+        <relationship name="document" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="DocumentMO" inverseName="snapshots" inverseEntity="DocumentMO"/>
+    </entity>
+</model>
