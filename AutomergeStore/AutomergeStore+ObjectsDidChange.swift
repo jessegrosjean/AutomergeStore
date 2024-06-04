@@ -1,29 +1,36 @@
 import Foundation
 import Automerge
 import CoreData
+import os.log
 
 extension AutomergeStore {
 
+    struct PendingContextInsertions {
+        var documents: [DocumentMO] = []
+        var snapshots: [SnapshotMO] = []
+        var incrementals: [IncrementalMO] = []
+        var isEmpty: Bool {
+            documents.isEmpty && snapshots.isEmpty && incrementals.isEmpty
+        }
+    }
+    
     func managedObjectContextObjectsDidChange(_ notification: Notification) {
         if let objects = notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> {
             for each in objects {
                 if let documentMO = each as? DocumentMO {
-                    print(documentMO)
-                    //print(documentMO.objectID.isTemporaryID)
-                    // ignorable
+                    pendingContextInsertions.documents.append(documentMO)
                 } else if let snapshotMO = each as? SnapshotMO {
-                    handleSnapshotInserted(snapshotMO)
+                    pendingContextInsertions.snapshots.append(snapshotMO)
                 } else if let incrementalMO = each as? IncrementalMO {
-                    handleIncrementalInserted(incrementalMO)
+                    pendingContextInsertions.incrementals.append(incrementalMO)
                 }
             }
         }
         
         if let objects = notification.userInfo?[NSUpdatedObjectsKey] as? NSSet {
             for each in objects {
-                if let doc = each as? DocumentMO {
-                    print(doc)
-                    // Expected when snapshots and changes are added
+                if let _ = each as? DocumentMO {
+                    // ignore
                 } else if let _ = each as? SnapshotMO {
                     assertionFailure("Should never happen?")
                 } else if let _ = each as? IncrementalMO {
@@ -36,6 +43,9 @@ extension AutomergeStore {
             for each in objects {
                 if let documentId = (each as? DocumentMO)?.objectID {
                     handles.removeValue(forKey: documentId)
+                    documentIds = documentIds.filter {
+                        $0.uriRepresentation() != documentId.uriRepresentation()
+                    }
                 } else if let _ = each as? SnapshotMO {
                     // ignoreable
                 } else if let _ = each as? IncrementalMO {
@@ -44,63 +54,90 @@ extension AutomergeStore {
             }
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            // Hack because at this point above logic is breaking because snapshot and incremental do not have document relationship set yet
-            self?.reloadAllDocuments()
+        if !pendingContextInsertions.isEmpty {
+            // When snapshots and increments come from CloudKit the relationships may not be
+            // setup. So snapshot.document might return nil. This means we can't process them
+            // right away in above loops, and instead store in ProcessContextInsertions
+            // structure, waiting until relationships are filled, or objects are no longer part
+            // of store.
+            processPendingContextInsertions()
         }
     }
-    
-    func reloadAllDocuments() {
-        try! saveDocumentChanges()
-        for (key, handle) in handles {
-            let doc = viewContext.object(with: key) as! DocumentMO
-            for snapshot in doc.snapshots ?? [] {
-                try! handle.document.applyEncodedChanges(encoded: (snapshot as! SnapshotMO).data!)
-            }
-            for incremental in doc.incrementals ?? [] {
-                try! handle.document.applyEncodedChanges(encoded: (incremental as! IncrementalMO).data!)
-            }
-        }
-    }
-    
-
-    func handleSnapshotInserted(_ snapshot: SnapshotMO) {
-        guard
-            //!snapshot.objectID.isTemporaryID,
-            let documentMO = snapshot.document,
-            let document = handles[documentMO.objectID]?.document,
-            let snapshotData = snapshot.data
-        else {
+        
+    private func processPendingContextInsertions() {
+        guard !pendingContextInsertions.isEmpty else {
             return
         }
 
-        do {
-            try saveExistingChangesBeforeApplyingRemote(documentMO)
-            try document.applyEncodedChanges(encoded: snapshotData)
-        } catch {
-            fatalError("Bad Data!")
-        }
-    }
-    
-    func handleIncrementalInserted(_ incremental: IncrementalMO) {
-        guard
-            //!incremental.objectID.isTemporaryID,
-            let documentMO = incremental.document,
-            let document = handles[documentMO.objectID]?.document,
-            let incrementalData = incremental.data
-        else {
-            return
+        Logger.automergeStore.info("􀳃 ProcessPendingContextInsertions")
+
+        let readyDocuments = pendingContextInsertions.documents.filter { !$0.objectID.isTemporaryID }
+        let readySnapshots = pendingContextInsertions.snapshots.filter { $0.document != nil }
+        let readyIncrementals = pendingContextInsertions.incrementals.filter { $0.document != nil }
+
+        pendingContextInsertions.documents = pendingContextInsertions.documents.filter {
+            $0.objectID.isTemporaryID && (try? viewContext.existingObject(with: $0.objectID)) != nil
         }
 
-        do {
-            try saveExistingChangesBeforeApplyingRemote(documentMO)
-            try document.applyEncodedChanges(encoded: incrementalData)
-        } catch {
-            fatalError("Bad Data!")
+        pendingContextInsertions.snapshots = pendingContextInsertions.snapshots.filter {
+            $0.document == nil && (try? viewContext.existingObject(with: $0.objectID)) != nil
+        }
+
+        pendingContextInsertions.incrementals = pendingContextInsertions.incrementals.filter {
+            $0.document == nil && (try? viewContext.existingObject(with: $0.objectID)) != nil
+        }
+        
+        documentIds.append(contentsOf: readyDocuments.map { $0.objectID })
+
+        for each in readySnapshots {
+            let documentMO = each.document!
+
+            guard
+                let document = handles[documentMO.objectID]?.document,
+                let snapshotData = each.data
+            else {
+                continue
+            }
+
+            do {
+                try saveExistingChangesBeforeApplyingRemote(documentMO)
+                Logger.automergeStore.info("􀳃 Applying snapshot \(each.objectID.uriRepresentation()) to document: \(documentMO.objectID.uriRepresentation())")
+                try document.applyEncodedChanges(encoded: snapshotData)
+            } catch {
+                Logger.automergeStore.error("􀳃 Failed while apply snapshot \(error.localizedDescription)")
+            }
+        }
+
+        for each in readyIncrementals {
+            let documentMO = each.document!
+
+            guard
+                let document = handles[documentMO.objectID]?.document,
+                let incrementalData = each.data
+            else {
+                continue
+            }
+
+            do {
+                try saveExistingChangesBeforeApplyingRemote(documentMO)
+                Logger.automergeStore.info("􀳃 Applying incremental \(each.objectID.uriRepresentation()) to document: \(documentMO.objectID.uriRepresentation())")
+                try document.applyEncodedChanges(encoded: incrementalData)
+            } catch {
+                Logger.automergeStore.error("􀳃 Failed while applying incremental \(error.localizedDescription)")
+            }
+        }
+
+        if !pendingContextInsertions.isEmpty {
+            DispatchQueue.main.async { [weak self] in
+                self?.processPendingContextInsertions()
+            }
         }
     }
     
     private func saveExistingChangesBeforeApplyingRemote(_ documentMO: DocumentMO) throws {
+        // This is important because of way we manage heads... otherwise our changes would
+        // not get sent to other clients until next time we compacted our changes into a
+        // snapshot.
         if let changes = try handles[documentMO.objectID]?.save() {
             let incremental = IncrementalMO(context: viewContext)
             incremental.data = changes

@@ -1,13 +1,14 @@
 import Combine
 import CoreData
 import Automerge
+import os.log
 import PersistentHistoryTrackingKit
 
 extension URL {
     public static let devNull = URL(fileURLWithPath: "/dev/null")
 }
 
-public final class AutomergeStore: NSObject, ObservableObject {
+public final class AutomergeStore: ObservableObject {
         
     public typealias DocumentId = NSManagedObjectID
     
@@ -23,20 +24,18 @@ public final class AutomergeStore: NSObject, ObservableObject {
     }
 
     @Published public var documentIds: [DocumentId] = []
-    
+        
     let container: NSPersistentContainer
     let persistentHistoryTracking: PersistentHistoryTrackingKit?
-    let documentsFetchResultsController: NSFetchedResultsController<DocumentMO>
     var viewContext: NSManagedObjectContext { container.viewContext }
 
     var handles: [DocumentId : Handle] = [:]
     var scheduleSaveChanges: PassthroughSubject<Void, Never> = .init()
+    var pendingContextInsertions: PendingContextInsertions = .init()
     var cancellables: Set<AnyCancellable> = []
-    var maxIncrementals = 10
     
     public init(url: URL? = nil, persistentHistoryOptions: PersistentHistoryOptions? = nil) throws {
         //container = NSPersistentContainer(name: "AutomergeStore")
-        
         container = NSPersistentCloudKitContainer(name: "AutomergeStore")
         
         let storeDescription = container.persistentStoreDescriptions.first!
@@ -87,21 +86,8 @@ public final class AutomergeStore: NSObject, ObservableObject {
         } else {
             persistentHistoryTracking = nil
         }
-        
-        let documentsFetchRequest = DocumentMO.fetchRequest()
-        let sortDescriptor = NSSortDescriptor(key: "created", ascending: false)
-        
-        documentsFetchRequest.sortDescriptors = [sortDescriptor]
-        documentsFetchRequest.fetchBatchSize = 20
 
-        documentsFetchResultsController = NSFetchedResultsController(
-            fetchRequest: documentsFetchRequest,
-            managedObjectContext: container.viewContext,
-            sectionNameKeyPath: nil,
-            cacheName: nil
-        )
-
-        super.init()
+        documentIds = try! viewContext.fetch(DocumentMO.fetchRequest()).map { $0.objectID }
         
         scheduleSaveChanges
             .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
@@ -112,21 +98,13 @@ public final class AutomergeStore: NSObject, ObservableObject {
                     print(error)
                 }
             }.store(in: &cancellables)
-        
+
         NotificationCenter.default.publisher(
             for: NSManagedObjectContext.didChangeObjectsNotification,
             object: viewContext
         ).sink { [weak self] notification in
             self?.managedObjectContextObjectsDidChange(notification)
         }.store(in: &cancellables)
-        
-        documentsFetchResultsController.delegate = self
-        
-        try documentsFetchResultsController.performFetch()
-        
-        if let documents = documentsFetchResultsController.fetchedObjects {
-            documentIds = documents.map { $0.objectID }
-        }
     }
         
     public func newDocument(_ document: Automerge.Document = .init()) throws -> Document  {
@@ -137,7 +115,7 @@ public final class AutomergeStore: NSObject, ObservableObject {
         documentMO.created = .now
         try viewContext.save()
         let id = documentMO.objectID
-        createHandle(id: id, document: document)
+        createHandle(id: id, document: document, documentMO: documentMO)
         return .init(id: id, doc: document)
     }
     
@@ -173,7 +151,7 @@ public final class AutomergeStore: NSObject, ObservableObject {
             }
         }
         
-        createHandle(id: id, document: document)
+        createHandle(id: id, document: document, documentMO: documentMO)
         
         return .init(id: id, doc: document)
     }
@@ -200,8 +178,10 @@ public final class AutomergeStore: NSObject, ObservableObject {
                 let changes = try handles[eachId]?.save()
             {
                 if let documentMO = try viewContext.existingObject(with: eachId) as? DocumentMO {
+                    Logger.automergeStore.info("􀳃 Storing document changes \(documentMO.objectID.uriRepresentation())")                    
                     let incrementalMO = IncrementalMO(context: viewContext)
                     incrementalMO.data = changes
+                    incrementalMO.byteCount = Int32(changes.count)
                     documentMO.addToIncrementals(incrementalMO)
                     snapshotDocumentChangesIfNeeded(documentMO: documentMO)
                 }
@@ -224,12 +204,12 @@ extension AutomergeStore {
     struct Handle {
         let document: Automerge.Document
         var saved: Set<ChangeHash>
-        let subscription: AnyCancellable
+        var subscriptions: Set<AnyCancellable>
         
-        init(document: Automerge.Document, subscription: AnyCancellable) {
+        init(document: Automerge.Document, subscriptions: Set<AnyCancellable>) {
             self.document = document
             self.saved = document.heads()
-            self.subscription = subscription
+            self.subscriptions = subscriptions
         }
         
         mutating func save() throws -> Data? {
@@ -242,12 +222,16 @@ extension AutomergeStore {
         }
     }
     
-    func createHandle(id: DocumentId, document: Automerge.Document) {
+    func createHandle(id: DocumentId, document: Automerge.Document, documentMO: DocumentMO) {
+        var documentSubscriptions: Set<AnyCancellable> = []
+
+        document.objectWillChange.sink { [weak self] in
+            self?.scheduleSaveChanges.send()
+        }.store(in: &documentSubscriptions)
+        
         handles[id] = .init(
             document: document,
-            subscription: document.objectWillChange.sink { [weak self] in
-                self?.scheduleSaveChanges.send()
-            }
+            subscriptions: documentSubscriptions
         )
     }
 
@@ -257,15 +241,22 @@ extension AutomergeStore {
     
     func snapshotDocumentChangesIfNeeded(documentMO: DocumentMO) {
         guard
-            let incrementals = documentMO.incrementals, incrementals.count > maxIncrementals,
-            let document = handles[documentMO.objectID]?.document
+            let document = handles[documentMO.objectID]?.document,
+            let incrementals = documentMO.incrementals,
+            let snapshotBytes = documentMO.snapshots?.reduce(0, { $0 + ($1 as! SnapshotMO).byteCount }),
+            let incrementalsBytes = documentMO.incrementals?.reduce(0, { $0 + ($1 as! IncrementalMO).byteCount }),
+            incrementalsBytes > (snapshotBytes / 2)
         else {
             return
         }
         
-        let cdLatestSnapshot = SnapshotMO(context: viewContext)
+        Logger.automergeStore.info("􀳃 Snapshotting document \(documentMO.objectID.uriRepresentation())")
         
-        cdLatestSnapshot.data = document.save()
+        let cdLatestSnapshot = SnapshotMO(context: viewContext)
+        let cdData = document.save()
+        
+        cdLatestSnapshot.data = cdData
+        cdLatestSnapshot.byteCount = Int32(cdData.count)
         documentMO.addToSnapshots(cdLatestSnapshot)
         
         for each in documentMO.snapshots ?? [] {
@@ -283,12 +274,6 @@ extension AutomergeStore {
         }
     }
 
-}
-
-extension AutomergeStore: NSFetchedResultsControllerDelegate {
-    public func controller(_ controller: NSFetchedResultsController<any NSFetchRequestResult>, didChangeContentWith diff: CollectionDifference<NSManagedObjectID>) {
-        documentIds = documentIds.applying(diff)!
-    }
 }
 
 extension AutomergeStore {
