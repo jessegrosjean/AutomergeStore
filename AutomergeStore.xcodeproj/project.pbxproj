@@ -72,6 +72,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		43A33E0B2C0E756400B234F8 /* Later */ = {
+			isa = PBXGroup;
+			children = (
+				43CF289C2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift */,
+				43CF289A2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift */,
+			);
+			path = Later;
+			sourceTree = "<group>";
+		};
 		43CF28542C0CF5A40023FF0A = {
 			isa = PBXGroup;
 			children = (
@@ -99,9 +108,8 @@
 				43CF28A02C0E0D640023FF0A /* DocumentView.swift */,
 				43CF28902C0CF9350023FF0A /* AutomergeStore.swift */,
 				43CF28912C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift */,
-				43CF289C2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift */,
-				43CF289A2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift */,
 				43CF289E2C0DFC9B0023FF0A /* Logger.swift */,
+				43A33E0B2C0E756400B234F8 /* Later */,
 				43CF28692C0CF5A50023FF0A /* Assets.xcassets */,
 				43CF286B2C0CF5A50023FF0A /* AutomergeStore.entitlements */,
 				43CF28642C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld */,
