@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="ChunkMO" representedClassName="ChunkMO" syncable="YES" codeGenerationType="class">
+        <attribute name="data" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="heads" attributeType="String"/>
+        <attribute name="isDelta" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="size" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="uuid" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="document" maxCount="1" deletionRule="Nullify" destinationEntity="DocumentMO" inverseName="chunks" inverseEntity="DocumentMO"/>
+    </entity>
     <entity name="DocumentMO" representedClassName="DocumentMO" syncable="YES" codeGenerationType="class">
-        <attribute name="created" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="name" optional="YES" attributeType="String"/>
-        <relationship name="incrementals" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="IncrementalMO" inverseName="document" inverseEntity="IncrementalMO"/>
-        <relationship name="snapshots" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SnapshotMO" inverseName="document" inverseEntity="SnapshotMO"/>
+        <attribute name="uuid" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="chunks" toMany="YES" deletionRule="Cascade" destinationEntity="ChunkMO" inverseName="document" inverseEntity="ChunkMO"/>
+        <relationship name="workspace" maxCount="1" deletionRule="Nullify" destinationEntity="WorkspaceMO" inverseName="documents" inverseEntity="WorkspaceMO"/>
     </entity>
-    <entity name="IncrementalMO" representedClassName="IncrementalMO" syncable="YES" codeGenerationType="class">
-        <attribute name="byteCount" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="data" optional="YES" attributeType="Binary"/>
-        <relationship name="document" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="DocumentMO" inverseName="incrementals" inverseEntity="DocumentMO"/>
-    </entity>
-    <entity name="SnapshotMO" representedClassName="SnapshotMO" syncable="YES" codeGenerationType="class">
-        <attribute name="byteCount" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="data" optional="YES" attributeType="Binary"/>
-        <relationship name="document" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="DocumentMO" inverseName="snapshots" inverseEntity="DocumentMO"/>
+    <entity name="WorkspaceMO" representedClassName="WorkspaceMO" syncable="YES" codeGenerationType="class">
+        <attribute name="uuid" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="documents" toMany="YES" deletionRule="Cascade" destinationEntity="DocumentMO" inverseName="workspace" inverseEntity="DocumentMO"/>
     </entity>
 </model>

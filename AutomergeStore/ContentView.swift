@@ -10,41 +10,41 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             List(selection: self.$selection) {
-                ForEach(automergeStore.documentIds, id: \.self) { id in
+                ForEach(automergeStore.workspaceIds, id: \.self) { id in
                     NavigationLink {
-                        if let document = try? automergeStore.openDocument(id: id)?.doc {
-                            DocumentView(document: document)
+                        if let index = try? automergeStore.openWorkspace(id: id)?.index {
+                            DocumentView(document: index)
                         } else {
                             Text("Failed to load document")
                         }
                     } label: {
-                        Text("\(id.uriRepresentation())")
+                        Text(id.uuidString)
                     }
                 }
-                .onDelete { offsets in
-                    deleteDocuments(offsets.map { automergeStore.documentIds[$0] })
-                }
+                //.onDelete { offsets in
+                //    deleteDocuments(offsets.map { automergeStore.documentIds[$0] })
+                //}
             }
             .toolbar {
                 ToolbarItem {
-                    Button(action: addDocument) {
+                    Button(action: newWorkspace) {
                         Label("Add Document", systemImage: "plus")
                     }
                 }
             }
             #if os(macOS)
-            .onDeleteCommand {
-                deleteDocuments(Array(selection))
-            }
+            //.onDeleteCommand {
+            //    deleteDocuments(Array(selection))
+            //}
             #endif
             Text("Select a document")
         }
     }
 
-    private func addDocument() {
+    private func newWorkspace() {
         withAnimation {
             do {
-                _ = try automergeStore.newDocument()
+                _ = try automergeStore.newWorkspace()
             } catch {
                 let nsError = error as NSError
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
@@ -52,6 +52,7 @@ struct ContentView: View {
         }
     }
 
+    /*
     private func deleteDocuments(_ deleteIds: [AutomergeStore.DocumentId]) {
         withAnimation {
             do {
@@ -64,5 +65,6 @@ struct ContentView: View {
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
         }
-    }
+    }*/
+     
 }

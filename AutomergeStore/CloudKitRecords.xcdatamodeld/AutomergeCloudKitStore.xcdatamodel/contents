@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="ChunkRecordMO" representedClassName="ChunkRecordMO" syncable="YES" codeGenerationType="class">
+        <attribute name="ckRecordData" optional="YES" attributeType="Binary"/>
+        <attribute name="pendingDelete" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="pendingSave" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="uuid" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="workspace" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkspaceZoneMO" inverseName="chunks" inverseEntity="WorkspaceZoneMO"/>
+    </entity>
+    <entity name="WorkspaceZoneMO" representedClassName="WorkspaceZoneMO" syncable="YES" codeGenerationType="class">
+        <attribute name="pendingSave" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="uuid" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="chunks" toMany="YES" deletionRule="Nullify" destinationEntity="ChunkRecordMO" inverseName="workspace" inverseEntity="ChunkRecordMO"/>
+    </entity>
+</model>

@@ -7,6 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		431841F92C108A39005F41FC /* Data+Sha256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431841F62C108A39005F41FC /* Data+Sha256.swift */; };
+		431841FA2C108A39005F41FC /* CKRecords+InitWithData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431841F72C108A39005F41FC /* CKRecords+InitWithData.swift */; };
+		431841FB2C108A39005F41FC /* Document+HeadsKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431841F82C108A39005F41FC /* Document+HeadsKey.swift */; };
+		431841FD2C1092EA005F41FC /* MO+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431841FC2C1092EA005F41FC /* MO+Extensions.swift */; };
+		431842022C10AE38005F41FC /* CloudKitRecords.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 431842002C10AE38005F41FC /* CloudKitRecords.xcdatamodeld */; };
+		431842042C10BFE1005F41FC /* AutomergeCloudKitStore+AutomergeStoreDidChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431842032C10BFE1005F41FC /* AutomergeCloudKitStore+AutomergeStoreDidChange.swift */; };
+		431842062C10D365005F41FC /* AutomergeCloudKitStore+CloudKitRecords.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431842052C10D365005F41FC /* AutomergeCloudKitStore+CloudKitRecords.swift */; };
+		43A33E102C0F285D00B234F8 /* URL+DevNull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */; };
+		43A33E132C0F29CB00B234F8 /* AutomergeStore+Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A33E122C0F29CB00B234F8 /* AutomergeStore+Error.swift */; };
+		43A33E162C0F30E700B234F8 /* AutomergeStore+Workspaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A33E152C0F30E700B234F8 /* AutomergeStore+Workspaces.swift */; };
+		43A33E182C0F313000B234F8 /* AutomergeStore+Documents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A33E172C0F313000B234F8 /* AutomergeStore+Documents.swift */; };
 		43CF28612C0CF5A40023FF0A /* AutomergeStoreApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */; };
 		43CF28662C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28642C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld */; };
 		43CF28682C0CF5A40023FF0A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28672C0CF5A40023FF0A /* ContentView.swift */; };
@@ -34,6 +45,18 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		431841F62C108A39005F41FC /* Data+Sha256.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Data+Sha256.swift"; sourceTree = "<group>"; };
+		431841F72C108A39005F41FC /* CKRecords+InitWithData.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "CKRecords+InitWithData.swift"; sourceTree = "<group>"; };
+		431841F82C108A39005F41FC /* Document+HeadsKey.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Document+HeadsKey.swift"; sourceTree = "<group>"; };
+		431841FC2C1092EA005F41FC /* MO+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MO+Extensions.swift"; sourceTree = "<group>"; };
+		431842012C10AE38005F41FC /* AutomergeCloudKitStore.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = AutomergeCloudKitStore.xcdatamodel; sourceTree = "<group>"; };
+		431842032C10BFE1005F41FC /* AutomergeCloudKitStore+AutomergeStoreDidChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeCloudKitStore+AutomergeStoreDidChange.swift"; sourceTree = "<group>"; };
+		431842052C10D365005F41FC /* AutomergeCloudKitStore+CloudKitRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeCloudKitStore+CloudKitRecords.swift"; sourceTree = "<group>"; };
+		43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+DevNull.swift"; sourceTree = "<group>"; };
+		43A33E122C0F29CB00B234F8 /* AutomergeStore+Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Error.swift"; sourceTree = "<group>"; };
+		43A33E142C0F2A3A00B234F8 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		43A33E152C0F30E700B234F8 /* AutomergeStore+Workspaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Workspaces.swift"; sourceTree = "<group>"; };
+		43A33E172C0F313000B234F8 /* AutomergeStore+Documents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Documents.swift"; sourceTree = "<group>"; };
 		43CF285D2C0CF5A40023FF0A /* AutomergeStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AutomergeStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreApp.swift; sourceTree = "<group>"; };
 		43CF28652C0CF5A40023FF0A /* AutomergeStore.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = AutomergeStore.xcdatamodel; sourceTree = "<group>"; };
@@ -72,18 +95,30 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		43A33E0B2C0E756400B234F8 /* Later */ = {
+		43A33E0E2C0F284E00B234F8 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				43CF289C2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift */,
-				43CF289A2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift */,
+				431841F72C108A39005F41FC /* CKRecords+InitWithData.swift */,
+				431841F62C108A39005F41FC /* Data+Sha256.swift */,
+				431841F82C108A39005F41FC /* Document+HeadsKey.swift */,
+				43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */,
+				431841FC2C1092EA005F41FC /* MO+Extensions.swift */,
 			);
-			path = Later;
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		43A33E112C0F29AF00B234F8 /* Util */ = {
+			isa = PBXGroup;
+			children = (
+				43CF289E2C0DFC9B0023FF0A /* Logger.swift */,
+			);
+			path = Util;
 			sourceTree = "<group>";
 		};
 		43CF28542C0CF5A40023FF0A = {
 			isa = PBXGroup;
 			children = (
+				43A33E142C0F2A3A00B234F8 /* README.md */,
 				43CF285F2C0CF5A40023FF0A /* AutomergeStore */,
 				43CF28762C0CF5A50023FF0A /* AutomergeStoreTests */,
 				43CF285E2C0CF5A40023FF0A /* Products */,
@@ -107,12 +142,20 @@
 				43CF28672C0CF5A40023FF0A /* ContentView.swift */,
 				43CF28A02C0E0D640023FF0A /* DocumentView.swift */,
 				43CF28902C0CF9350023FF0A /* AutomergeStore.swift */,
+				43A33E122C0F29CB00B234F8 /* AutomergeStore+Error.swift */,
+				43A33E172C0F313000B234F8 /* AutomergeStore+Documents.swift */,
+				43A33E152C0F30E700B234F8 /* AutomergeStore+Workspaces.swift */,
 				43CF28912C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift */,
-				43CF289E2C0DFC9B0023FF0A /* Logger.swift */,
-				43A33E0B2C0E756400B234F8 /* Later */,
+				43CF289C2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift */,
+				431842052C10D365005F41FC /* AutomergeCloudKitStore+CloudKitRecords.swift */,
+				431842032C10BFE1005F41FC /* AutomergeCloudKitStore+AutomergeStoreDidChange.swift */,
+				43CF289A2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift */,
+				43A33E112C0F29AF00B234F8 /* Util */,
+				43A33E0E2C0F284E00B234F8 /* Extensions */,
 				43CF28692C0CF5A50023FF0A /* Assets.xcassets */,
 				43CF286B2C0CF5A50023FF0A /* AutomergeStore.entitlements */,
 				43CF28642C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld */,
+				431842002C10AE38005F41FC /* CloudKitRecords.xcdatamodeld */,
 				43CF286C2C0CF5A50023FF0A /* Preview Content */,
 			);
 			path = AutomergeStore;
@@ -243,14 +286,25 @@
 			buildActionMask = 2147483647;
 			files = (
 				43CF28612C0CF5A40023FF0A /* AutomergeStoreApp.swift in Sources */,
+				431842062C10D365005F41FC /* AutomergeCloudKitStore+CloudKitRecords.swift in Sources */,
+				43A33E102C0F285D00B234F8 /* URL+DevNull.swift in Sources */,
 				43CF289D2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift in Sources */,
 				43CF28682C0CF5A40023FF0A /* ContentView.swift in Sources */,
 				43CF289F2C0DFC9B0023FF0A /* Logger.swift in Sources */,
 				43CF289B2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift in Sources */,
 				43CF28922C0CF9350023FF0A /* AutomergeStore.swift in Sources */,
 				43CF28932C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift in Sources */,
+				43A33E132C0F29CB00B234F8 /* AutomergeStore+Error.swift in Sources */,
+				43A33E162C0F30E700B234F8 /* AutomergeStore+Workspaces.swift in Sources */,
+				431841FB2C108A39005F41FC /* Document+HeadsKey.swift in Sources */,
+				431841F92C108A39005F41FC /* Data+Sha256.swift in Sources */,
 				43CF28662C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld in Sources */,
+				43A33E182C0F313000B234F8 /* AutomergeStore+Documents.swift in Sources */,
 				43CF28A12C0E0D640023FF0A /* DocumentView.swift in Sources */,
+				431841FD2C1092EA005F41FC /* MO+Extensions.swift in Sources */,
+				431842022C10AE38005F41FC /* CloudKitRecords.xcdatamodeld in Sources */,
+				431841FA2C108A39005F41FC /* CKRecords+InitWithData.swift in Sources */,
+				431842042C10BFE1005F41FC /* AutomergeCloudKitStore+AutomergeStoreDidChange.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -578,6 +632,16 @@
 /* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
+		431842002C10AE38005F41FC /* CloudKitRecords.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				431842012C10AE38005F41FC /* AutomergeCloudKitStore.xcdatamodel */,
+			);
+			currentVersion = 431842012C10AE38005F41FC /* AutomergeCloudKitStore.xcdatamodel */;
+			path = CloudKitRecords.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
 		43CF28642C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld */ = {
 			isa = XCVersionGroup;
 			children = (

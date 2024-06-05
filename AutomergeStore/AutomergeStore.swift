@@ -4,39 +4,28 @@ import Automerge
 import os.log
 import PersistentHistoryTrackingKit
 
-extension URL {
-    public static let devNull = URL(fileURLWithPath: "/dev/null")
-}
-
 public final class AutomergeStore: ObservableObject {
         
-    public typealias DocumentId = NSManagedObjectID
-    
-    public struct Document: Identifiable {
-        public let id: DocumentId
-        public let doc: Automerge.Document
-    }
-    
     public struct PersistentHistoryOptions {
         public let appGroup: String?
         public let author: String
         public let allAuthors: [String]
     }
 
-    @Published public var documentIds: [DocumentId] = []
-        
-    let container: NSPersistentContainer
-    let persistentHistoryTracking: PersistentHistoryTrackingKit?
-    var viewContext: NSManagedObjectContext { container.viewContext }
+    @Published public var workspaceIds: [WorkspaceId] = []
 
-    var handles: [DocumentId : Handle] = [:]
-    var scheduleSaveChanges: PassthroughSubject<Void, Never> = .init()
-    var pendingContextInsertions: PendingContextInsertions = .init()
+    let container: NSPersistentContainer
+    var viewContext: NSManagedObjectContext { container.viewContext }
+    let persistentHistoryTracking: PersistentHistoryTrackingKit?
+
+    var documentHandles: [DocumentId : Handle] = [:]
+    let workspaceManagedObjects: CurrentValueSubject<[WorkspaceMO], Never> = .init([])
+    var scheduleSave: PassthroughSubject<Void, Never> = .init()
+    //var pendingContextInsertions: PendingContextInsertions = .init()
     var cancellables: Set<AnyCancellable> = []
     
     public init(url: URL? = nil, persistentHistoryOptions: PersistentHistoryOptions? = nil) throws {
-        //container = NSPersistentContainer(name: "AutomergeStore")
-        container = NSPersistentCloudKitContainer(name: "AutomergeStore")
+        container = NSPersistentContainer(name: "AutomergeStore")
         
         let storeDescription = container.persistentStoreDescriptions.first!
         
@@ -87,18 +76,24 @@ public final class AutomergeStore: ObservableObject {
             persistentHistoryTracking = nil
         }
 
-        documentIds = try! viewContext.fetch(DocumentMO.fetchRequest()).map { $0.objectID }
-        
-        scheduleSaveChanges
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-            .sink { [weak self] in
+        workspaceManagedObjects.value = try viewContext.fetch(WorkspaceMO.fetchRequest())
+
+        scheduleSave
+            .debounce(
+                for: .milliseconds(500),
+                scheduler: DispatchQueue.main
+            ).sink { [weak self] in
                 do {
-                    try self?.saveDocumentChanges()
+                    try self?.saveChanges()
                 } catch {
                     print(error)
                 }
             }.store(in: &cancellables)
 
+        workspaceManagedObjects.sink { [weak self] workspaceMOs in
+            self?.workspaceIds = workspaceMOs.map { $0.uuid! }.sorted()
+        }.store(in: &cancellables)
+        
         NotificationCenter.default.publisher(
             for: NSManagedObjectContext.didChangeObjectsNotification,
             object: viewContext
@@ -106,91 +101,9 @@ public final class AutomergeStore: ObservableObject {
             self?.managedObjectContextObjectsDidChange(notification)
         }.store(in: &cancellables)
     }
-        
-    public func newDocument(_ document: Automerge.Document = .init()) throws -> Document  {
-        let documentMO = DocumentMO(context: viewContext)
-        let snapshotMO = SnapshotMO(context: viewContext)
-        snapshotMO.data = document.save()
-        documentMO.addToSnapshots(snapshotMO)
-        documentMO.created = .now
-        try viewContext.save()
-        let id = documentMO.objectID
-        createHandle(id: id, document: document, documentMO: documentMO)
-        return .init(id: id, doc: document)
-    }
     
-    public func openDocument(id: DocumentId) throws -> Document? {
-        if let document = handles[id]?.document {
-            return .init(id: id, doc: document)
-        }
-        
-        guard let documentMO = try viewContext.existingObject(with: id) as? DocumentMO else {
-            return nil
-        }
-        
-        var document: Automerge.Document?
-        
-        for each in documentMO.snapshots ?? [] {
-            if let snapshotData = (each as? SnapshotMO)?.data {
-                if let document {
-                    try document.applyEncodedChanges(encoded: snapshotData)
-                } else {
-                    document = try .init(snapshotData)
-                }
-            }
-        }
-
-        guard let document else {
-            // Expect to find at least one snapshot, else nil
-            return nil
-        }
-
-        for each in documentMO.incrementals ?? [] {
-            if let incrementalData = (each as? IncrementalMO)?.data {
-                try document.applyEncodedChanges(encoded: incrementalData)
-            }
-        }
-        
-        createHandle(id: id, document: document, documentMO: documentMO)
-        
-        return .init(id: id, doc: document)
-    }
-    
-    public func closeDocument(id: DocumentId, storingChanges: Bool = true) throws {
-        if storingChanges {
-            try storeDocumentChanges(id: id)
-        }
-        try dropHandle(id: id)
-    }
-    
-    public func deleteDocument(id: DocumentId) throws {
-        handles.removeValue(forKey: id)
-        if let documentMO = try viewContext.existingObject(with: id) as? DocumentMO {
-            viewContext.delete(documentMO)
-            try viewContext.save()
-        }
-    }
-
-    public func storeDocumentChanges(id documentId: DocumentId? = nil) throws {
-        for eachId in handles.keys {
-            if
-                documentId == nil || documentId == eachId,
-                let changes = try handles[eachId]?.save()
-            {
-                if let documentMO = try viewContext.existingObject(with: eachId) as? DocumentMO {
-                    Logger.automergeStore.info("􀳃 Storing document changes \(documentMO.objectID.uriRepresentation())")                    
-                    let incrementalMO = IncrementalMO(context: viewContext)
-                    incrementalMO.data = changes
-                    incrementalMO.byteCount = Int32(changes.count)
-                    documentMO.addToIncrementals(incrementalMO)
-                    snapshotDocumentChangesIfNeeded(documentMO: documentMO)
-                }
-            }
-        }
-    }
-
-    public func saveDocumentChanges() throws {
-        try storeDocumentChanges()
+    public func saveChanges() throws {
+        try insertPendingDocumentChanges()
         
         if viewContext.hasChanges {
             try viewContext.save()
@@ -212,79 +125,32 @@ extension AutomergeStore {
             self.subscriptions = subscriptions
         }
         
-        mutating func save() throws -> Data? {
+        mutating func save() throws -> (heads: Set<ChangeHash>, data: Data)? {
             guard document.heads() != saved else {
                 return nil
             }
+            let newSavedHeads = document.heads()
             let changes = try document.encodeChangesSince(heads: saved)
-            saved = document.heads()
-            return changes
+            saved = newSavedHeads
+            return (newSavedHeads, changes)
         }
     }
     
-    func createHandle(id: DocumentId, document: Automerge.Document, documentMO: DocumentMO) {
+    func createHandle(id: DocumentId, document: Automerge.Document) {
         var documentSubscriptions: Set<AnyCancellable> = []
 
         document.objectWillChange.sink { [weak self] in
-            self?.scheduleSaveChanges.send()
+            self?.scheduleSave.send()
         }.store(in: &documentSubscriptions)
         
-        handles[id] = .init(
+        documentHandles[id] = .init(
             document: document,
             subscriptions: documentSubscriptions
         )
     }
 
     func dropHandle(id: DocumentId) throws {
-        handles.removeValue(forKey: id)
-    }
-    
-    func snapshotDocumentChangesIfNeeded(documentMO: DocumentMO) {
-        guard
-            let document = handles[documentMO.objectID]?.document,
-            let incrementals = documentMO.incrementals,
-            let snapshotBytes = documentMO.snapshots?.reduce(0, { $0 + ($1 as! SnapshotMO).byteCount }),
-            let incrementalsBytes = documentMO.incrementals?.reduce(0, { $0 + ($1 as! IncrementalMO).byteCount }),
-            incrementalsBytes > (snapshotBytes / 2)
-        else {
-            return
-        }
-        
-        Logger.automergeStore.info("􀳃 Snapshotting document \(documentMO.objectID.uriRepresentation())")
-        
-        let cdLatestSnapshot = SnapshotMO(context: viewContext)
-        let cdData = document.save()
-        
-        cdLatestSnapshot.data = cdData
-        cdLatestSnapshot.byteCount = Int32(cdData.count)
-        documentMO.addToSnapshots(cdLatestSnapshot)
-        
-        for each in documentMO.snapshots ?? [] {
-            if let each = each as? SnapshotMO, each !== cdLatestSnapshot {
-                documentMO.removeFromSnapshots(each)
-                viewContext.delete(each)
-            }
-        }
-        
-        for each in incrementals {
-            if let each = each as? IncrementalMO {
-                documentMO.removeFromIncrementals(each)
-                viewContext.delete(each)
-            }
-        }
-    }
-
-}
-
-extension AutomergeStore {
-
-    public struct Error: Sendable, LocalizedError {
-        public var msg: String
-        public var errorDescription: String? { "AutomergeStoreError: \(msg)" }
-
-        public init(msg: String) {
-            self.msg = msg
-        }
+        documentHandles.removeValue(forKey: id)
     }
 
 }
