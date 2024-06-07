@@ -1,0 +1,28 @@
+{
+  "configurations" : [
+    {
+      "id" : "142FA303-32BD-4029-A7A8-0B9D70D3237F",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:AutomergeStore.xcodeproj",
+      "identifier" : "43CF285C2C0CF5A40023FF0A",
+      "name" : "AutomergeStore"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:AutomergeStore.xcodeproj",
+        "identifier" : "43CF28722C0CF5A50023FF0A",
+        "name" : "AutomergeStoreTests"
+      }
+    }
+  ],
+  "version" : 1
+}

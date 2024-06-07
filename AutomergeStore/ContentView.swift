@@ -6,13 +6,13 @@ struct ContentView: View {
     @EnvironmentObject var automergeStore: AutomergeStore
 
     @State private var selection = Set<AutomergeStore.DocumentId>()
-
+    
     var body: some View {
         NavigationView {
             List(selection: self.$selection) {
                 ForEach(automergeStore.workspaceIds, id: \.self) { id in
                     NavigationLink {
-                        if let index = try? automergeStore.openWorkspace(id: id)?.index {
+                        if let index = try? automergeStore.openWorkspace(id: id).index {
                             DocumentView(document: index)
                         } else {
                             Text("Failed to load document")
@@ -21,9 +21,9 @@ struct ContentView: View {
                         Text(id.uuidString)
                     }
                 }
-                //.onDelete { offsets in
-                //    deleteDocuments(offsets.map { automergeStore.documentIds[$0] })
-                //}
+                .onDelete { offsets in
+                    deleteWorkspaces(offsets.map { automergeStore.workspaceIds[$0] })
+                }
             }
             .toolbar {
                 ToolbarItem {
@@ -33,9 +33,9 @@ struct ContentView: View {
                 }
             }
             #if os(macOS)
-            //.onDeleteCommand {
-            //    deleteDocuments(Array(selection))
-            //}
+            .onDeleteCommand {
+                deleteWorkspaces(Array(selection))
+            }
             #endif
             Text("Select a document")
         }
@@ -52,12 +52,11 @@ struct ContentView: View {
         }
     }
 
-    /*
-    private func deleteDocuments(_ deleteIds: [AutomergeStore.DocumentId]) {
+    private func deleteWorkspaces(_ deleteIds: [AutomergeStore.WorkspaceId]) {
         withAnimation {
             do {
                 for each in deleteIds {
-                    try automergeStore.deleteDocument(id: each)
+                    try automergeStore.deleteWorkspace(id: each)
                 }
                 selection = []
             } catch {
@@ -65,6 +64,6 @@ struct ContentView: View {
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
         }
-    }*/
+    }
      
 }

@@ -1,5 +1,7 @@
 import CloudKit
+import CoreData
 import Automerge
+import Combine
 import os.log
 
 public final actor AutomergeCloudKitStore {
@@ -13,32 +15,50 @@ public final actor AutomergeCloudKitStore {
     let database: CKDatabase
     let automaticallySync: Bool
     let automergeStore: AutomergeStore
-    let cloudKitRecords: CloudKitRecords
     var syncEngineState: CKSyncEngine.State.Serialization?
+    var processingSyncEngineChanges: Bool
+    var subscription: AnyCancellable?
 
-    public init(
+    public init (
         container: CKContainer,
         database: CKDatabase,
         automaticallySync: Bool = true,
         automergeStore: AutomergeStore
-    ) throws {
+    ) async throws {
         self.container = container
         self.database = database
         self.automaticallySync = automaticallySync
-        self.cloudKitRecords = try .init()
         self.automergeStore = automergeStore
+        self.processingSyncEngineChanges = false
+        self.subscribeToAutomergeStore()
     }
 
+    func subscribeToAutomergeStore() {
+        // Expectation is we must see all changes from this store. Maybe should be using
+        // history tracking to really make sure?
+        self.subscription = NotificationCenter.default.publisher(
+            for: NSManagedObjectContext.didChangeObjectsNotification,
+            object: automergeStore.context
+        ).sink { [weak self] notification in
+            guard let self else {
+                return
+            }
+            Task {
+                await self.automergeStoreManagedObjectContextObjectsDidChange(notification)
+            }
+        }
+    }
+    
     public func newWorkspace(index: Automerge.Document = .init()) throws -> Workspace  {
         try automergeStore.newWorkspace(index: index)
     }
-    
+
     public func openWorkspace(id: WorkspaceId) throws -> Workspace? {
         try automergeStore.openWorkspace(id: id)
     }
 
-    public func closeWorkspace(id: WorkspaceId, insertingPendingChanges: Bool = true) throws {
-        try automergeStore.closeWorkspace(id: id, insertingPendingChanges: insertingPendingChanges)
+    public func closeWorkspace(id: WorkspaceId, saveChanges: Bool = true) throws {
+        try automergeStore.closeWorkspace(id: id, saveChanges: saveChanges)
     }
 
     public func deleteWorkspace(id: WorkspaceId) throws {
@@ -53,10 +73,14 @@ public final actor AutomergeCloudKitStore {
         try automergeStore.openDocument(id: documentId)
     }
 
-    public func closeDocument(id: DocumentId, insertingPendingChanges: Bool = true) throws {
-        try automergeStore.closeDocument(id: id, insertingPendingChanges: insertingPendingChanges)
+    public func closeDocument(id: DocumentId, saveChanges: Bool = true) throws {
+        try automergeStore.closeDocument(id: id, saveChanges: saveChanges)
     }
 
+    public func commitChanges() throws {
+        try automergeStore.commitChanges()
+    }
+    
     public func deleteLocalData() throws {
         for eachId in automergeStore.workspaceIds {
             try automergeStore.deleteWorkspace(id: eachId)
@@ -65,18 +89,16 @@ public final actor AutomergeCloudKitStore {
     
     public func reuploadLocalData() throws {
         for eachId in automergeStore.workspaceIds {
-            let workspaceMO = try automergeStore.fetchWorkspace(id: eachId)!
+            let workspaceMO = automergeStore.fetchWorkspace(id: eachId)!
             syncEngine.state.add(pendingDatabaseChanges: [.saveZone(.init(zoneID: workspaceMO.zoneID))])
-            for documentMO in workspaceMO.documents as! Set<DocumentMO> {
-                for chunkMO in documentMO.chunks as! Set<ChunkMO> {
-                    syncEngine.state.add(pendingRecordZoneChanges: [.saveRecord(chunkMO.recordID)])
-                }
+            for chunkMO in workspaceMO.chunks as! Set<ChunkMO> {
+                syncEngine.state.add(pendingRecordZoneChanges: [.saveRecord(chunkMO.recordID)])
             }
         }
     }
     
     lazy var syncEngine: CKSyncEngine = {
-        Logger.automergeCloudKit.info("Initializing CloudKit sync engine.")
+        Logger.automergeCloudKit.info("􀇂 Initializing CloudKit sync engine.")
         var configuration = CKSyncEngine.Configuration(
             database: container.privateCloudDatabase,
             stateSerialization: syncEngineState,
@@ -100,25 +122,3 @@ extension AutomergeCloudKitStore {
     }
 
 }
-
-extension AutomergeStore.Document {
-    
-    var ckRecordId: CloudKit.CKRecord.ID {
-        .init(recordName: id.uuidString, zoneID: .init(zoneName: workspaceId.uuidString))
-    }
-    
-}
-
-extension ChunkMO {
-    
-    func ckRecordId(in zone: CKRecordZone.ID) -> CKRecord.ID {
-        .init(recordName: heads!, zoneID: zone)
-    }
-    
-}
-
-// Add workspace
-// Delete workspace
-// Add Document
-// Add Document chunk
-// Delete Document chunk
