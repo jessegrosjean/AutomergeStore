@@ -2,7 +2,13 @@
 
 (In progress, looking for feedback)
 
-Conflict free storage backed by Automerge, stored locally in CoreData, and optionally synced with CloudKit using CKSyncEngine.
+Conflict free local first storage backed by Automerge. Stored locally in CoreData. Optionally synced with CloudKit using CKSyncEngine.
+
+## Why would you use this?
+
+Use this package to sync generic JSON like data through CloudKit with efficient sync and automatic conflic resolution. I think this is a good base to also support sharing synced data with other users through CKShares, though I have not implemented that.
+
+## How would you use this?
 
 ```
 // Create a store
