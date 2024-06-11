@@ -4,79 +4,65 @@ import Automerge
 
 final class AutomergeStoreTests: XCTestCase {
     
-    func testInit() {
-        _ = AutomergeStore()
+    func testInit() throws {
+        let store = try AutomergeStore(url: .devNull)
+        XCTAssert(store.workspaceIds.count == 0)
+    }
+
+    func testNewWorkspace() throws {
+        let store = try AutomergeStore(url: .devNull)
+        let workspace = try store.newWorkspace()
+        XCTAssert(store.workspaceIds.count == 1)
+        XCTAssertNotNil(store.documentHandles[workspace.id]) // index doc
     }
     
-    /*
-    let testDocumentId = "test"
-    let container: CKContainer = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeCloudkit")
-
-    override func setUp() async throws {
-        let zoneID = CKRecordZone.ID(zoneName: testDocumentId)
-        try await container.privateCloudDatabase.deleteRecordZone(withID: zoneID)
+    func testModifyWorkspaceDocument() throws {
+        let store = try AutomergeStore(url: .devNull)
+        let workspace = try store.newWorkspace()
+        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        try workspace.index.put(obj: .ROOT, key: "count", value: .Counter(1))
+        XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
+        try store.transaction { $0.saveChanges() }
+        XCTAssertNotEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
 
-    func testSyncDocumentFromAToB() async throws {
-        _ = try await newTestReposWithSyncedDocument()
+    func testAddDocument() throws {
+        let store = try AutomergeStore(url: .devNull)
+        let workspace = try store.newWorkspace()
+        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        let document = try store.newDocument(workspaceId: workspace.id)
+        XCTAssertNotNil(store.documentHandles[document.id])
+        XCTAssertNotEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
 
-    func testSyncDocumentChangesFromAToB() async throws {
-        let (a, aDoc, b, bDoc) = try await newTestReposWithSyncedDocument()
-        try aDoc.increment(obj: .ROOT, key: "count", by: 1)
-        try await Task.sleep(nanoseconds: 100_000_000) // wait for changes to save
-        try await a.syncEngine.sendChanges()
-        try await b.syncEngine.fetchChanges()
-        XCTAssertEqual(try bDoc.get(obj: .ROOT, key: "count"), .Scalar(.Counter(2)))
+    func testCloseDocument() throws {
+        let store = try AutomergeStore(url: .devNull)
+        let workspace = try store.newWorkspace()
+        let document = try store.newDocument(workspaceId: workspace.id)
+        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        try store.closeDocument(id: document.id)
+        XCTAssertNil(store.documentHandles[document.id])
+        XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
 
-    func testSyncDocumentChangesBetweenAAndB() async throws {
-        let (a, aDoc, b, bDoc) = try await newTestReposWithSyncedDocument()
-
-        try aDoc.increment(obj: .ROOT, key: "count", by: 1)
-        try bDoc.increment(obj: .ROOT, key: "count", by: 1)
-        try await Task.sleep(nanoseconds: 100_000_000) // wait for changes to saves
-        try await a.syncEngine.sendChanges()
-        try await b.syncEngine.sendChanges()
-
-        try await a.syncEngine.fetchChanges()
-        try await b.syncEngine.fetchChanges()
-        XCTAssertEqual(try aDoc.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
-        XCTAssertEqual(try bDoc.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
+    func testCloseWorkspace() throws {
+        let store = try AutomergeStore(url: .devNull)
+        let workspace = try store.newWorkspace()
+        _ = try store.newDocument(workspaceId: workspace.id)
+        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        try store.closeWorkspace(id: workspace.id)
+        XCTAssertEqual(store.documentHandles.count, 0)
+        XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
-    
-    func newTestReposWithSyncedDocument() async throws -> (
-        AutomergeCloudKit,
-        Automerge.Document,
-        AutomergeCloudKit,
-        Automerge.Document
-    ){
-        let a = try await newTestRepo()
-        let b = try await newTestRepo()
 
-        let aDoc = Automerge.Document()
-        try aDoc.put(obj: .ROOT, key: "count", value: .Counter(1))
-        let returnedADoc = try await a.addDocument(id: testDocumentId, doc: aDoc)
-        XCTAssert(aDoc === returnedADoc)
-        
-        try await a.syncEngine.sendChanges()
-        
-        let noDoc = await b.loadDocument(id: testDocumentId)
-        XCTAssertNil(noDoc)
-        try await b.syncEngine.fetchChanges()
-        let bDoc = await b.loadDocument(id: testDocumentId)
-        XCTAssertNotNil(bDoc)
-        
-        return (a, aDoc, b, bDoc!)
+    func testDeleteWorkspace() throws {
+        let store = try AutomergeStore(url: .devNull)
+        let workspace = try store.newWorkspace()
+        let document = try store.newDocument(workspaceId: workspace.id)
+        try store.deleteWorkspace(id: workspace.id)
+        XCTAssertThrowsError(try store.openDocument(workspaceId: workspace.id, documentId: document.id))
+        XCTAssertEqual(store.documentHandles.count, 0)
+        XCTAssertEqual(store.workspaceIds.count, 0)
     }
-        
-    func newTestRepo() async throws -> AutomergeStore {
-        let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        let local = temporaryDirectoryURL.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        let automergeCloudKit = try AutomergeCloudKit(local: local, container: container, automaticallySync: false)
-        try await automergeCloudKit.syncEngine.fetchChanges()
-        return automergeCloudKit
-    }
-    */
 
 }

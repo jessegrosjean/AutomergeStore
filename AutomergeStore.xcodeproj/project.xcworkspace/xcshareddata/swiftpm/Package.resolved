@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/automerge/automerge-swift.git",
       "state" : {
-        "revision" : "f107c3bafc1d068252b65d3149729c11a50182d3",
-        "version" : "0.5.15"
+        "revision" : "26ccaf99d54bdc71a9c5ad77690b82ae20a7078c",
+        "version" : "0.5.16"
       }
     },
     {
