@@ -37,18 +37,18 @@ final class AutomergeCloudkitTests: XCTestCase {
 
     func testSyncDocumentChangesFromAToB() async throws {
         let (aStore, aWorkspace, bStore, bWorkspace) = try await newTestCloudKitStoresWithSyncedWorkspace()
-        try aWorkspace.index.increment(obj: .ROOT, key: "count", by: 1)
+        try aWorkspace.index.automerge.increment(obj: .ROOT, key: "count", by: 1)
         try await aStore.commitChanges()
         try await aStore.syncEngine.sendChanges()
         try await bStore.syncEngine.fetchChanges()
-        XCTAssertEqual(try bWorkspace.index.get(obj: .ROOT, key: "count"), .Scalar(.Counter(2)))
+        XCTAssertEqual(try bWorkspace.index.automerge.get(obj: .ROOT, key: "count"), .Scalar(.Counter(2)))
     }
 
     func testSyncDocumentChangesBetweenAAndB() async throws {
         let (aStore, aWorkspace, bStore, bWorkspace) = try await newTestCloudKitStoresWithSyncedWorkspace()
 
-        try aWorkspace.index.increment(obj: .ROOT, key: "count", by: 1)
-        try bWorkspace.index.increment(obj: .ROOT, key: "count", by: 1)
+        try aWorkspace.index.automerge.increment(obj: .ROOT, key: "count", by: 1)
+        try bWorkspace.index.automerge.increment(obj: .ROOT, key: "count", by: 1)
         try await aStore.commitChanges()
         try await bStore.commitChanges()
         try await aStore.syncEngine.sendChanges()
@@ -56,8 +56,8 @@ final class AutomergeCloudkitTests: XCTestCase {
 
         try await aStore.syncEngine.fetchChanges()
         try await bStore.syncEngine.fetchChanges()
-        XCTAssertEqual(try aWorkspace.index.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
-        XCTAssertEqual(try bWorkspace.index.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
+        XCTAssertEqual(try aWorkspace.index.automerge.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
+        XCTAssertEqual(try bWorkspace.index.automerge.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
     }
 
     func newTestCloudKitStore() async throws -> AutomergeCloudKitStore {
@@ -85,7 +85,7 @@ final class AutomergeCloudkitTests: XCTestCase {
         let aIndex = Automerge.Document()
         try aIndex.put(obj: .ROOT, key: "count", value: .Counter(1))
         let aWorkspace = try await aStore.newWorkspace(index: aIndex)
-        XCTAssert(aWorkspace.index === aIndex)
+        XCTAssert(aWorkspace.index.automerge === aIndex)
         
         try await aStore.commitChanges()
         try await aStore.syncEngine.sendChanges()
@@ -97,7 +97,7 @@ final class AutomergeCloudkitTests: XCTestCase {
         XCTAssertNotNil(bWorkspace)
         
         XCTAssertEqual(
-            try bWorkspace.index.get(obj: .ROOT, key: "count"),
+            try bWorkspace.index.automerge.get(obj: .ROOT, key: "count"),
             .Scalar(.Counter(1))
         )
         

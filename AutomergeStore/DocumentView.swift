@@ -22,8 +22,6 @@ struct DocumentView: View {
         } else {
             return 0
         }
-
-
     }
     
     private func increment(by delta: Int64) {

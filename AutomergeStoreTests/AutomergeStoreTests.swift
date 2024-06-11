@@ -20,7 +20,7 @@ final class AutomergeStoreTests: XCTestCase {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()
         let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
-        try workspace.index.put(obj: .ROOT, key: "count", value: .Counter(1))
+        try workspace.index.automerge.put(obj: .ROOT, key: "count", value: .Counter(1))
         XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
         try store.transaction { $0.saveChanges() }
         XCTAssertNotEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))

@@ -8,7 +8,7 @@ extension AutomergeStore.Transaction {
         Logger.automergeStore.info("􀳃 Creating workspace \(id)")
         let workspaceMO = WorkspaceMO(context: context, id: id, index: index)
         createDocumentHandle(workspaceId: workspaceMO.id!, documentId: workspaceMO.id!, automerge: index)
-        return .init(id: id, index: index)
+        return .init(id: id, index: .init(id: id, workspaceId: id, automerge: index))
     }
     
     public func importWorkspace(
@@ -29,13 +29,16 @@ extension AutomergeStore.Transaction {
     }
     
     public func openWorkspace(id: WorkspaceId) throws -> Workspace {
-        Logger.automergeStore.info("􀳃 Opening workspace \(id)")
-
         guard let workspaceMO = context.fetchWorkspace(id: id) else {
             throw Error(msg: "Workspace not found: \(id)")
         }
+        
+        if documentHandles[id] == nil {
+            Logger.automergeStore.info("􀳃 Opening workspace \(id)")
+        }
+        
         let document = try openDocument(id: workspaceMO.id!)
-        return .init(id: id, index: document.automerge)
+        return .init(id: id, index: .init(id: id, workspaceId: id, automerge: document.automerge))
     }
     
     public func closeWorkspace(id: WorkspaceId, saveChanges: Bool = true) {

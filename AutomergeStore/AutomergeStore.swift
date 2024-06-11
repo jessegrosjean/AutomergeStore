@@ -12,7 +12,7 @@ public final class AutomergeStore: ObservableObject {
 
     public struct Workspace: Identifiable {
         public let id: WorkspaceId
-        public let index: Automerge.Document
+        public let index: Document
     }
 
     public struct Document: Identifiable {

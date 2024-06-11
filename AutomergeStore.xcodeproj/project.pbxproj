@@ -54,6 +54,7 @@
 		434532BD2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSManagedObjectContext+Fetching.swift"; sourceTree = "<group>"; };
 		434532C12C138F2D008FC5A8 /* AutomergeStore+DocumentHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+DocumentHandle.swift"; sourceTree = "<group>"; };
 		434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView+ViewModel.swift"; sourceTree = "<group>"; };
+		434532CB2C18DF9D008FC5A8 /* NSDocument.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NSDocument.md; sourceTree = "<group>"; };
 		43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+DevNull.swift"; sourceTree = "<group>"; };
 		43A33E142C0F2A3A00B234F8 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		43CF285D2C0CF5A40023FF0A /* AutomergeStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AutomergeStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -110,6 +111,7 @@
 			children = (
 				434532B02C113153008FC5A8 /* AutomergeStore.xctestplan */,
 				43A33E142C0F2A3A00B234F8 /* README.md */,
+				434532CB2C18DF9D008FC5A8 /* NSDocument.md */,
 				43CF285F2C0CF5A40023FF0A /* AutomergeStore */,
 				43CF28762C0CF5A50023FF0A /* AutomergeStoreTests */,
 				43CF285E2C0CF5A40023FF0A /* Products */,

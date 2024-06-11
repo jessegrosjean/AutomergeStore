@@ -4,7 +4,7 @@ import Automerge
 import Combine
 import os.log
 
-public final actor AutomergeCloudKitStore: ObservableObject {
+public final actor AutomergeCloudKitStore {
     
     static let syncEngineFetchTransactionSource = "syncEngineFetchTransactionSource"
         
@@ -82,15 +82,20 @@ public final actor AutomergeCloudKitStore: ObservableObject {
     
     public func deleteLocalData() throws {
         let workspaceIds = automergeStore.workspaceIds
-        try automergeStore.transaction {
+        try automergeStore.transaction(source: Self.syncEngineFetchTransactionSource) {
+            $0.syncState = nil
             for eachId in workspaceIds {
                 try $0.deleteWorkspace(id: eachId)
             }
         }
     }
-    
+
     public func reuploadLocalData() throws {
+        syncEngine.state.remove(pendingDatabaseChanges: syncEngine.state.pendingDatabaseChanges)
+        syncEngine.state.remove(pendingRecordZoneChanges: syncEngine.state.pendingRecordZoneChanges)
+
         let workspaceIds = automergeStore.workspaceIds
+        
         let (databaseChanges, recordChanges) = try automergeStore.transaction {
             var databaseChanges: [CKSyncEngine.PendingDatabaseChange] = []
             var recordChanges: [CKSyncEngine.PendingRecordZoneChange] = []
@@ -105,6 +110,7 @@ public final actor AutomergeCloudKitStore: ObservableObject {
             
             return (databaseChanges, recordChanges)
         }
+        
         syncEngine.state.add(pendingDatabaseChanges: databaseChanges)
         syncEngine.state.add(pendingRecordZoneChanges: recordChanges)
     }

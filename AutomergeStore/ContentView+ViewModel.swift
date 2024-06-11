@@ -16,7 +16,7 @@ extension ContentView {
 
         init() {
             Task {
-                let container: CKContainer = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeStore.testing")
+                let container: CKContainer = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeStore")
                 let automergeStore = try AutomergeStore()
 
                 self.automergeStore = automergeStore
@@ -44,20 +44,20 @@ extension ContentView {
 
 extension ContentView.ViewModel {
 
-    public func newWorkspace() throws -> AutomergeStore.Workspace {
-        try automergeStore!.newWorkspace()
+    public func newWorkspace() -> AutomergeStore.Workspace {
+        try! automergeStore!.newWorkspace()
     }
 
     public func openWorkspace(id: AutomergeStore.WorkspaceId) throws -> AutomergeStore.Workspace {
         try automergeStore!.openWorkspace(id: id)
     }
 
-    public func deleteWorkspaces(_ workspaceIds: [AutomergeStore.WorkspaceId]) throws {
-        try automergeStore!.transaction {
+    public func deleteWorkspaces(_ workspaceIds: [AutomergeStore.WorkspaceId]) {
+        try! automergeStore!.transaction {
             for each in workspaceIds {
-                try $0.deleteWorkspace(id: each)
+                try! $0.deleteWorkspace(id: each)
             }
         }
     }
-    
+
 }

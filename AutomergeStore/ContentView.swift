@@ -23,7 +23,7 @@ struct ContentView: View {
                 ForEach(viewModel.workspaceIds, id: \.self) { id in
                     NavigationLink {
                         if let index = try? viewModel.openWorkspace(id: id).index {
-                            DocumentView(document: index)
+                            DocumentView(document: index.automerge)
                         } else {
                             Text("Failed to load document")
                         }
@@ -53,24 +53,14 @@ struct ContentView: View {
 
     private func newWorkspace() {
         withAnimation {
-            do {
-                _ = try viewModel.newWorkspace()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            _ = viewModel.newWorkspace()
         }
     }
 
     private func deleteWorkspaces(_ deleteIds: [AutomergeStore.WorkspaceId]) {
         withAnimation {
-            do {
-                try viewModel.deleteWorkspaces(deleteIds)
-                selection = []
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            viewModel.deleteWorkspaces(deleteIds)
+            selection = []
         }
     }
     

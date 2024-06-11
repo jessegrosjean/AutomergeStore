@@ -60,12 +60,12 @@ extension AutomergeStore.Transaction {
     }
     
     public func openDocument(id: DocumentId) throws -> Document {
-        Logger.automergeStore.info("􀳃 Opening document \(id)")
-
         if let handle = documentHandles[id] {
             return .init(id: id, workspaceId: handle.workspaceId, automerge: handle.automerge)
         }
-        
+
+        Logger.automergeStore.info("􀳃 Opening document \(id)")
+
         guard
             let chunks = context.fetchDocumentChunks(id: id),
             let workspaceId = chunks.first?.workspace?.id
