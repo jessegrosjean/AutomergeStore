@@ -1,46 +1,50 @@
 # AutomergeStore
 
-Workspace Alternative... documents can contain other documents
+(In progress)
 
-DocumentMO
-    uuid: UUID
-    chunks: [ChunkMO]
-    parent: DocumentMO?
-    children: [DocumentMO]
+Conflic free storage backed by Automerge, stored locally in CoreData, and optionally synced with CloudKit using CKSyncEngine.
 
-ChunkMO
-    uuid: UUID
-    isDelta: Bool
-    owner: DocumentMO
+Each store contains workspaces. Each workspace contains at least one (`workspace.index`), and potentially more automerge documents. The intention is that a workspace maps to a user level document. Use the `workspace.index` document for main document content. Potentially add other documents to the workspace for state (like attachments) that you don't always need to load into memory.
+
+```
+AutomergeStore
+    workspaces: [Workspace]
+Workspace
+    id: UUID
+    documents: [Document]
+Document
+    id: UUID
+    automerge: Automerge.Document
+```
+
+You can create, open, and delete workspace. You can create and open documents. You can't delete documents. Automerge documents maintain full edit history. Since workspaces don't allow deleting documents, they also maintain full edit history.
+
+
+The storage model is different then the API model and looks like this:
+
+```
+AutomergeStore (CKDatabase when synced to CloudKit)
+    workspaces: [Workspace]
+Workspace (CKRecordZone when synced to CloudKit)
+    id: UUID
+    chunks: [Document]
+Chunk (CKRecord when synced to CloudKit)
+    id: UUID
+    documentId: UUID
+    isSnapshot: Bool
     data: Data
+```
 
-Neet idea, but I don't know that I like this. With workspaces we can setup rules such as they retain all history... can't delete a document, but can delete a workspace. Also it's easy to find all documents contained in a workspace, harder if documents contain other documents.
+A workspace contains chunks. Each Chunk has a documentId. There can be more then one chunk with the same documentId. When opening a document:
 
+1. Find all Chunks with that documentId
+2. At least one Chunk must have isSnapshot == true, else open fails
+3. Create a new Automerge.Document from that snapshot chunk. Then merge in the data from the other matching chunks into the document.
 
+When you make changes to the returned Automerge.Document the store saves a new chunk that just contains those changes (isSnapshot == false). Eventually the store will combine all the Chunks with the same documentId into a single compressed isSnapshot == true Chunk.
 
+Things to notice:
 
+- As you make changes the changes are stored into small "delta" chunks. These are fast to sync to CloudKit and to apply to other clients.
 
-
-Workspace Thinking
-
-Unit of sharing is Workspace, not document
-    - Workspace might be something fancy like a file directory ui with many documents.
-    - But Workspace might represent just a single document to user, but since using workspace that single document can be backed by multiple other documents. For example might have a main document that is a text, and then other attachment documents. Or might have main document that is Book, but that's just a list of Chapter documents. 
-
-- Workspace is used to group documents, but should have little API of it's own. It's just a document container and a way to access a well known index document that is in the container.
-- Don't need way to observe all documents in workspace, that tracking should be done by index document and observed there.
-- Don't allow deleting documents from workspace, workspace should maintain full history.
-- Do allow deleting workspaces
-- Stop using managed object IDs, instead use UUIDs for documents. Then can be sure that IDs can be used outside of coredata and also don't have to worry about temporary distinction.
-- DataModel should be NO conflicts. Don't store document or workspace name... that info should be stored in conflict free workspace index.
- 
-NSDocument
-    - Based of Workspace model (so N Automerge.Document with one special index document)
-    - Not based on AutomergeStore, instead uses file wrapper storage
-    - Each document is stored as data (no incrementals) with UUID filename.
-    - Also includes metadata plist in wrapper, which stores index UUID
-    The "magic" part:
-        - When loads document it looks at existing AutomergeStore and looks for matching document (that is being synced to icloude). It merges in any changes and then uses AutomergeStore's Automerge.Document instance.
-        - So NSDocument is not dependent on AutomergeStore state, but if it finds matching state then it will use that state and automatically sync.
-        -   
-    
+- Chunks are created or deleted, but never modified. And chunks are only deleted after they are first merged into a new snapshot chunk. Workspaces are grow only datastructures and contain a full history of edits.

@@ -13,56 +13,64 @@ extension AutomergeStore.Transaction {
         return (try? context.count(for: request)) == 1
     }
     
-    public func newDocument(workspaceId: WorkspaceId, document: Automerge.Document = .init()) throws -> Document {
-        guard let workspaceMO = fetchWorkspace(id: workspaceId) else {
-            throw Error(msg: "Workspace not found: \(workspaceId)")
-        }
-        
+    public func newDocument(workspaceId: WorkspaceId, automerge: Automerge.Document = .init()) throws -> Document {
         let documentId = UUID()
         
+        Logger.automergeStore.info("􀳃 Creating document \(documentId)")
+        
+        guard let workspaceMO = context.fetchWorkspace(id: workspaceId) else {
+            throw Error(msg: "Workspace not found: \(workspaceId)")
+        }
+
         workspaceMO.addToChunks(.init(
             context: context,
+            workspaceId: workspaceMO.id!,
             documentId: documentId,
             isSnapshot: true,
-            data: document.save()
+            data: automerge.save()
         ))
         
         createDocumentHandle(
             workspaceId: workspaceId,
             documentId: documentId,
-            document: document
+            automerge: automerge
         )
         
-        return .init(id: documentId, doc: document, workspaceId: workspaceMO.id!)
+        return .init(id: documentId, workspaceId: workspaceMO.id!, automerge: automerge)
     }
     
     public func importDocument(
         workspaceId: WorkspaceId,
         documentId: DocumentId,
-        document: Automerge.Document = .init()
+        automerge: Automerge.Document
     ) throws {
-        guard let workspaceMO = fetchWorkspace(id: workspaceId) else {
+        Logger.automergeStore.info("􀳃 Importing document \(documentId)")
+
+        guard let workspaceMO = context.fetchWorkspace(id: workspaceId) else {
             throw Error(msg: "Workspace not found: \(workspaceId)")
         }
         
         workspaceMO.addToChunks(.init(
             context: context,
+            workspaceId: workspaceMO.id!,
             documentId: documentId,
             isSnapshot: true,
-            data: document.save()
+            data: automerge.save()
         ))
     }
     
-    public func openDocument(id: DocumentId) throws -> Document? {
+    public func openDocument(id: DocumentId) throws -> Document {
+        Logger.automergeStore.info("􀳃 Opening document \(id)")
+
         if let handle = documentHandles[id] {
-            return .init(id: id, doc: handle.document, workspaceId: handle.workspaceId)
+            return .init(id: id, workspaceId: handle.workspaceId, automerge: handle.automerge)
         }
         
         guard
-            let chunks = fetchDocumentChunks(id: id),
+            let chunks = context.fetchDocumentChunks(id: id),
             let workspaceId = chunks.first?.workspace?.id
         else {
-            return nil
+            throw Error(msg: "Found no chunks for document: \(id)")
         }
         
         let snapshots = chunks.filter { $0.isSnapshot }
@@ -71,53 +79,56 @@ extension AutomergeStore.Transaction {
             throw Error(msg: "Found no snapshots for document: \(id)")
         }
         
-        let document = try Automerge.Document(firstSnapshotData)
+        let automerge = try Automerge.Document(firstSnapshotData)
         
         for eachSnapshot in snapshots.dropFirst() {
             if let snapshotData = eachSnapshot.data {
-                try document.applyEncodedChanges(encoded: snapshotData)
+                try automerge.applyEncodedChanges(encoded: snapshotData)
             }
         }
                 
         for eachDelta in chunks.filter({ !$0.isSnapshot }) {
             if let deltaData = eachDelta.data {
-                try document.applyEncodedChanges(encoded: deltaData)
+                try automerge.applyEncodedChanges(encoded: deltaData)
             }
         }
         
         createDocumentHandle(
             workspaceId: workspaceId,
             documentId: id,
-            document: document
+            automerge: automerge
         )
         
-        return .init(id: id, doc: document, workspaceId: workspaceId)
+        return .init(id: id, workspaceId: workspaceId, automerge: automerge)
     }
 
     public func closeDocument(id: DocumentId, saveChanges: Bool = true) {
+        Logger.automergeStore.info("􀳃 Closing document \(id)")
+        
         if saveChanges {
-            saveDocumentChanges(id: id)
+            self.saveChanges(id: id)
         }
         dropDocumentHandle(id: id)
     }
 
-    func saveDocumentChanges(id documentId: DocumentId? = nil) {
+    public func saveChanges(id documentId: DocumentId? = nil) {
         for eachDocumentId in documentHandles.keys {
             guard
                 documentId == nil || documentId == eachDocumentId,
-                let document = documentHandles[eachDocumentId]?.document,
+                let document = documentHandles[eachDocumentId]?.automerge,
                 let (_, changes) = documentHandles[eachDocumentId]?.save()
             else {
                 continue
             }
             
-            var eachDocumentChunkMOs = fetchDocumentChunks(id: eachDocumentId)!
+            var eachDocumentChunkMOs = context.fetchDocumentChunks(id: eachDocumentId)!
             let workspaceMO = eachDocumentChunkMOs.first!.workspace!
 
             Logger.automergeStore.info("􀳃 Inserting document changes \(eachDocumentId)")
 
             let newChunk = ChunkMO(
                 context: context,
+                workspaceId: workspaceMO.id!,
                 documentId: eachDocumentId,
                 isSnapshot: false,
                 data: changes
@@ -136,6 +147,7 @@ extension AutomergeStore.Transaction {
 
                 let newSnapshotChunk = ChunkMO(
                     context: context,
+                    workspaceId: workspaceMO.id!,
                     documentId: eachDocumentId,
                     isSnapshot: true,
                     data: document.save()
@@ -149,49 +161,15 @@ extension AutomergeStore.Transaction {
             }
         }
     }
-
-    func containsChunk(id: UUID) -> Bool {
-        let request = ChunkMO.fetchRequest()
-        request.fetchLimit = 1
-        request.includesPendingChanges = true
-        request.predicate = .init(format: "%K == %@", "id", id as CVarArg)
-        return (try? context.fetch(request).first) != nil
-    }
     
-    func fetchChunk(id: UUID) -> ChunkMO? {
-        let request = ChunkMO.fetchRequest()
-        request.fetchLimit = 1
-        request.includesPendingChanges = true
-        request.predicate = .init(format: "%K == %@", "id", id as CVarArg)
-        return try? context.fetch(request).first
-    }
-    
-    func fetchDocumentChunks(id: DocumentId, snapshotsOnly: Bool = false, fetchLimit: Int? = nil) -> [ChunkMO]? {
-        let request = ChunkMO.fetchRequest()
-        request.includesPendingChanges = true
-        if snapshotsOnly {
-            request.predicate = .init(format: "%K == %@ and isSnapshot == true", "documentId", id as CVarArg)
-        } else {
-            request.predicate = .init(format: "%K == %@", "documentId", id as CVarArg)
-        }
-        if let fetchLimit {
-            request.fetchLimit = fetchLimit
-        }
-        return try? context.fetch(request)
-    }
-    
-    func createDocumentHandle(workspaceId: WorkspaceId, documentId: DocumentId, document: Automerge.Document) {
-        var documentSubscriptions: Set<AnyCancellable> = []
+    func createDocumentHandle(workspaceId: WorkspaceId, documentId: DocumentId, automerge: Automerge.Document) {
         let scheduleSave = scheduleSave
-
-        document.objectWillChange.sink {
-            scheduleSave.send()
-        }.store(in: &documentSubscriptions)
-        
         documentHandles[documentId] = .init(
             workspaceId: workspaceId,
-            document: document,
-            subscriptions: documentSubscriptions
+            automerge: automerge,
+            automergeSubscription: automerge.objectWillChange.sink {
+                scheduleSave.send()
+            }
         )
     }
     

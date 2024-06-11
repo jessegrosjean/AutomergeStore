@@ -17,6 +17,20 @@ final class AutomergeCloudkitTests: XCTestCase {
         _ = try await newTestCloudKitStore()
     }
 
+    func testNewCloudKitStoreWithSentWorkspace() async throws {
+        let store = try await newTestCloudKitStore()
+        _ = try await store.newWorkspace()
+        let databaseChanges = await store.syncEngine.state.pendingDatabaseChanges
+        let recordZoneChanges = await store.syncEngine.state.pendingRecordZoneChanges
+        XCTAssertEqual(databaseChanges.count, 1)
+        XCTAssertEqual(recordZoneChanges.count, 1)
+        try await store.syncEngine.sendChanges()
+        let databaseChanges2 = await store.syncEngine.state.pendingDatabaseChanges
+        let recordZoneChanges2 = await store.syncEngine.state.pendingRecordZoneChanges
+        XCTAssertEqual(databaseChanges2.count, 0)
+        XCTAssertEqual(recordZoneChanges2.count, 0)
+    }
+
     func testNewCloudKitStoresWithSyncedWorkspace() async throws {
         _ = try await newTestCloudKitStoresWithSyncedWorkspace()
     }
@@ -30,24 +44,21 @@ final class AutomergeCloudkitTests: XCTestCase {
         XCTAssertEqual(try bWorkspace.index.get(obj: .ROOT, key: "count"), .Scalar(.Counter(2)))
     }
 
-    /*
-
     func testSyncDocumentChangesBetweenAAndB() async throws {
-        let (a, aDoc, b, bDoc) = try await newTestReposWithSyncedDocument()
+        let (aStore, aWorkspace, bStore, bWorkspace) = try await newTestCloudKitStoresWithSyncedWorkspace()
 
-        try aDoc.increment(obj: .ROOT, key: "count", by: 1)
-        try bDoc.increment(obj: .ROOT, key: "count", by: 1)
-        try await Task.sleep(nanoseconds: 100_000_000) // wait for changes to saves
-        try await a.syncEngine.sendChanges()
-        try await b.syncEngine.sendChanges()
+        try aWorkspace.index.increment(obj: .ROOT, key: "count", by: 1)
+        try bWorkspace.index.increment(obj: .ROOT, key: "count", by: 1)
+        try await aStore.commitChanges()
+        try await bStore.commitChanges()
+        try await aStore.syncEngine.sendChanges()
+        try await bStore.syncEngine.sendChanges()
 
-        try await a.syncEngine.fetchChanges()
-        try await b.syncEngine.fetchChanges()
-        XCTAssertEqual(try aDoc.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
-        XCTAssertEqual(try bDoc.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
+        try await aStore.syncEngine.fetchChanges()
+        try await bStore.syncEngine.fetchChanges()
+        XCTAssertEqual(try aWorkspace.index.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
+        XCTAssertEqual(try bWorkspace.index.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
     }
-    
-     */
 
     func newTestCloudKitStore() async throws -> AutomergeCloudKitStore {
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -86,11 +97,11 @@ final class AutomergeCloudkitTests: XCTestCase {
         XCTAssertNotNil(bWorkspace)
         
         XCTAssertEqual(
-            try bWorkspace!.index.get(obj: .ROOT, key: "count"),
+            try bWorkspace.index.get(obj: .ROOT, key: "count"),
             .Scalar(.Counter(1))
         )
         
-        return (aStore, aWorkspace, bStore, bWorkspace!)
+        return (aStore, aWorkspace, bStore, bWorkspace)
     }
     
 }

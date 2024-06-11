@@ -22,16 +22,13 @@ extension AutomergeCloudKitStore: CKSyncEngineDelegate {
     ) async -> CKSyncEngine.RecordZoneChangeBatch? {
         let scope = context.options.scope
         let changes = syncEngine.state.pendingRecordZoneChanges.filter { scope.contains($0) }
-        let batch = await CKSyncEngine.RecordZoneChangeBatch(pendingChanges: changes) { recordID -> CKRecord? in
-            guard
-                let chunkId = UUID(uuidString: recordID.recordName),
-                let chunkMO = automergeStore.fetchChunk(id: chunkId)
-            else {
+        let batch = await CKSyncEngine.RecordZoneChangeBatch(pendingChanges: changes) { [weak self] recordID -> CKRecord? in
+            guard let record = await self?.preparedRecord(id: recordID) else {
                 // record no longer exists locally, probably deleted
                 syncEngine.state.remove(pendingRecordZoneChanges: [ .saveRecord(recordID) ])
                 return nil
             }
-            return chunkMO.preparedRecord(id: recordID)
+            return record
         }
         
         Logger.automergeCloudKit.info("􀇂 nextRecordZoneChangeBatch with \(batch?.recordsToSave.count ?? 0) saves/edits and \(batch?.recordIDsToDelete.count ?? 0) removals")
@@ -48,32 +45,43 @@ extension AutomergeCloudKitStore: CKSyncEngineDelegate {
         case .accountChange(let accountChange):
             Logger.automergeCloudKit.info("􀇂 accountChange")
             handleAccountChange(accountChange)
+
+        // Fetch database changes
+        case .willFetchChanges:
+            Logger.automergeCloudKit.info("􀇂 willFetchChanges")
+            activityPublisher.send(.fetching)
         case .fetchedDatabaseChanges(let fetchedDatabaseChanges):
             Logger.automergeCloudKit.info("􀇂 fetchedDatabaseChanges")
             handleFetchedDatabaseChanges(fetchedDatabaseChanges)
+        case .didFetchChanges:
+            Logger.automergeCloudKit.info("􀇂 didFetchChanges")
+            activityPublisher.send(.waiting)
+
+        // Fetch record changes
+        case .willFetchRecordZoneChanges:
+            Logger.automergeCloudKit.info("􀇂 willFetchRecordZoneChanges")
+            activityPublisher.send(.fetching)
         case .fetchedRecordZoneChanges(let fetchedRecordZoneChanges):
             Logger.automergeCloudKit.info("􀇂 fetchedRecordZoneChanges")
             handleFetchedRecordZoneChanges(fetchedRecordZoneChanges)
+        case .didFetchRecordZoneChanges:
+            Logger.automergeCloudKit.info("􀇂 didFetchRecordZoneChanges")
+            activityPublisher.send(.waiting)
+
+        // Send database and record changes
+        case .willSendChanges:
+            Logger.automergeCloudKit.info("􀇂 willSendChanges")
+            activityPublisher.send(.sending)
         case .sentDatabaseChanges(let sentDatabaseChanges):
             Logger.automergeCloudKit.info("􀇂 sentDatabaseChanges")
             handleSentDatabaseChanges(sentDatabaseChanges)
         case .sentRecordZoneChanges(let sentRecordZoneChanges):
             Logger.automergeCloudKit.info("􀇂 sentRecordZoneChanges")
             handleSentRecordZoneChanges(sentRecordZoneChanges)
-        case .willFetchChanges:
-            Logger.automergeCloudKit.info("􀇂 willFetchChanges")
-            processingSyncEngineChanges = true
-        case .willFetchRecordZoneChanges:
-            Logger.automergeCloudKit.info("􀇂 willFetchRecordZoneChanges")
-        case .didFetchRecordZoneChanges:
-            Logger.automergeCloudKit.info("􀇂 didFetchRecordZoneChanges")
-        case .didFetchChanges:
-            Logger.automergeCloudKit.info("􀇂 didFetchChanges")
-            processingSyncEngineChanges = false
-        case .willSendChanges:
-            Logger.automergeCloudKit.info("􀇂 willSendChanges")
         case .didSendChanges:
             Logger.automergeCloudKit.info("􀇂 didSendChanges")
+            activityPublisher.send(.waiting)
+
         @unknown default:
             Logger.automergeCloudKit.info("􀇂 Received unknown event: \(event)")
         }
@@ -81,106 +89,125 @@ extension AutomergeCloudKitStore: CKSyncEngineDelegate {
 
     func handleStateUpdate(_ stateUpdate: CKSyncEngine.Event.StateUpdate) {
         do {
-            try automergeStore.commitChanges()
-            syncEngineState = stateUpdate.stateSerialization
+            try automergeStore.transaction { t in
+                t.context.syncState = stateUpdate.stateSerialization
+            }
         } catch {
-            Logger.automergeCloudKit.error("􀇂 Failed to save cloudkit records, skipping save of sync engine state")
+            Logger.automergeCloudKit.error("􀇂 Failed to save sync engine state")
         }
     }
 
     // Handle workspace zone create/delete
     func handleFetchedDatabaseChanges(_ fetchedDatabaseChanges: CKSyncEngine.Event.FetchedDatabaseChanges) {
-        for modification in fetchedDatabaseChanges.modifications {
-            if let workspaceId = UUID(uuidString: modification.zoneID.zoneName) {
-                do {
-                    Logger.automergeCloudKit.info("􀇂 Saving workspace \(workspaceId)")
-                    if !automergeStore.contains(workspaceId: workspaceId) {
-                        try automergeStore.importWorkspace(id: workspaceId, index: nil)
+        do {
+            try automergeStore.transaction(source: Self.syncEngineFetchTransactionSource) { t in
+                for modification in fetchedDatabaseChanges.modifications {
+                    if let workspaceId = UUID(uuidString: modification.zoneID.zoneName) {
+                        Logger.automergeCloudKit.info("􀇂 Saving workspace \(workspaceId)")
+                        t.importWorkspace(id: workspaceId, index: nil)
                     }
-                } catch {
-                    Logger.automergeCloudKit.error("􀇂 Error saving workspace \(workspaceId), error: \(error)")
+                }
+                
+                for deletion in fetchedDatabaseChanges.deletions {
+                    if let workspaceId = UUID(uuidString: deletion.zoneID.zoneName) {
+                        Logger.automergeCloudKit.info("􀇂 Deleting workspace \(workspaceId)")
+                        try? t.deleteWorkspace(id: workspaceId) // ignore error, it's already been deleted?
+                    }
                 }
             }
-        }
-        
-        for deletion in fetchedDatabaseChanges.deletions {
-            if let workspaceId = UUID(uuidString: deletion.zoneID.zoneName) {
-                do {
-                    Logger.automergeCloudKit.info("􀇂 Deleting workspace \(workspaceId)")
-                    if automergeStore.contains(workspaceId: workspaceId) {
-                        try automergeStore.deleteWorkspace(id: workspaceId)
-                    }
-                } catch {
-                    Logger.automergeCloudKit.error("􀇂 Error deleting workspace \(workspaceId), error: \(error)")
-                }
-            }
+        } catch {
+            Logger.automergeCloudKit.error("􀇂 Error handleFetchedDatabaseChanges error: \(error)")
         }
     }
     
     // Handle document zone create/delete
     func handleFetchedRecordZoneChanges(_ fetchedRecordZoneChanges: CKSyncEngine.Event.FetchedRecordZoneChanges) {
-        for modification in fetchedRecordZoneChanges.modifications {
-            let record = modification.record
-            let recordType = record.recordType
-            
-            if recordType == .chunkRecordType {
-                let recordId = modification.record.recordID
+        do {
+            try automergeStore.transaction(source: Self.syncEngineFetchTransactionSource) { t in
+                for modification in fetchedRecordZoneChanges.modifications {
+                    let record = modification.record
+                    let recordType = record.recordType
+                    
+                    if recordType == .chunkRecordType {
+                        let recordId = modification.record.recordID
 
-                Logger.automergeCloudKit.info("􀇂 Modifying chunk \(recordId)")
+                        Logger.automergeCloudKit.info("􀇂 Modifying chunk \(recordId)")
 
-                guard 
-                    let chunkId = UUID(uuidString: recordId.recordName),
-                    !automergeStore.containsChunk(id: chunkId),
-                    let workspaceId = UUID(uuidString: recordId.zoneID.zoneName),
-                    let workspaceMO = automergeStore.fetchWorkspace(id: workspaceId)
-                else {
-                    continue
-                }
+                        guard
+                            let chunkId = UUID(uuidString: recordId.recordName),
+                            !t.context.containsChunk(id: chunkId), // if we already have chunk nothing to do
+                            let workspaceId = UUID(uuidString: recordId.zoneID.zoneName),
+                            let workspaceMO = t.context.fetchWorkspace(id: workspaceId)
+                        else {
+                            continue
+                        }
 
-                do {
-                    workspaceMO.addToChunks(try .init(
-                        context: automergeStore.context,
-                        record: record
-                    ))
-                } catch {
-                    Logger.automergeCloudKit.error("􀇂 Failed to decode chunk record \(error)")
-                }
-            }
-        }
-        
-        for deletion in fetchedRecordZoneChanges.deletions {
-            let recordType = deletion.recordType
-
-            if recordType == .chunkRecordType {
-                let recordId = deletion.recordID
-                
-                Logger.automergeCloudKit.info("􀇂 Deleting chunk \(recordId)")
-
-                guard
-                    let chunkId = UUID(uuidString: recordId.recordName),
-                    let chunkMO = automergeStore.fetchChunk(id: chunkId) 
-                else {
-                    continue
+                        do {
+                            workspaceMO.addToChunks(try .init(
+                                context: t.context,
+                                record: record
+                            ))
+                        } catch {
+                            Logger.automergeCloudKit.error("􀇂 Failed to decode chunk record \(error)")
+                        }
+                    }
                 }
                 
-                automergeStore.context.delete(chunkMO)
+                for deletion in fetchedRecordZoneChanges.deletions {
+                    let recordType = deletion.recordType
+
+                    if recordType == .chunkRecordType {
+                        let recordId = deletion.recordID
+                        
+                        Logger.automergeCloudKit.info("􀇂 Deleting chunk \(recordId)")
+
+                        guard
+                            let chunkId = UUID(uuidString: recordId.recordName),
+                            let chunkMO = t.context.fetchChunk(id: chunkId)
+                        else {
+                            continue
+                        }
+                        
+                        t.context.delete(chunkMO)
+                    }
+                }
             }
+        } catch {
+            Logger.automergeCloudKit.error("􀇂 handleFetchedRecordZoneChanges error \(error)")
         }
     }
     
     func handleSentDatabaseChanges(_ sentDatabaseChanges: CKSyncEngine.Event.SentDatabaseChanges) {
         for failedZoneSave in sentDatabaseChanges.failedZoneSaves {
-            fatalError("\(failedZoneSave)")
+            Logger.automergeCloudKit.error("􀇂 failedZoneSave \(failedZoneSave)")
         }
         
-        for failedZoneDelete in sentDatabaseChanges.failedZoneDeletes {
-            fatalError("\(failedZoneDelete)")
+        for (id, error) in sentDatabaseChanges.failedZoneDeletes {
+            Logger.automergeCloudKit.error("􀇂 failedZoneDelete \(id)-\(error)")
         }
     }
     
     func handleSentRecordZoneChanges(_ sentRecordZoneChanges: CKSyncEngine.Event.SentRecordZoneChanges) {
+        for failedRecordSave in sentRecordZoneChanges.failedRecordSaves {
+            Logger.automergeCloudKit.error("􀇂 failedRecordSave \(failedRecordSave)")
+        }
+        
+        for (id, error) in sentRecordZoneChanges.failedRecordDeletes {
+            Logger.automergeCloudKit.error("􀇂 failedRecordDelete \(id)-\(error)")
+        }
         
         /*
+        automergeStore.transaction {
+            for savedRecord in sentRecordZoneChanges.savedRecords {
+                if
+                    let id = UUID(uuidString: savedRecord.recordID.recordName),
+                    let chunk = $0.context.fetchChunk(id: id)
+                {
+                    chunk.setLastKnownRecordIfNewer(savedRecord)
+                }
+            }
+        }
+        
         var newPendingRecordZoneChanges = [CKSyncEngine.PendingRecordZoneChange]()
         var newPendingDatabaseChanges = [CKSyncEngine.PendingDatabaseChange]()
         
@@ -190,36 +217,40 @@ extension AutomergeCloudKitStore: CKSyncEngineDelegate {
             
             switch failedRecordSave.error.code {
             case .serverRecordChanged:
-                // Generally user conflicts should never happen. Maybe possible if when creating
-                // copies of unsynced changes and then syncing both copies. Safe to just delete
-                // local then.
+                // Chunk are immutable. If same chunk is already on the server we can ignore error
+                // and we don't need to reschedule send.
                 
                 guard let serverRecord = failedRecordSave.error.serverRecord else {
-                    Logger.automergeCloudKit.error("No server record for conflict \(failedRecordSave.error)")
+                    Logger.automergeCloudKit.error("􀇂 No server record for conflict \(failedRecordSave.error)")
                     continue
                 }
+                
                 handleCreateOrModifyRecord(serverRecord)
-                newPendingRecordZoneChanges.append(.saveRecord(failedRecord.recordID))
                 
             case .zoneNotFound:
                 let zone = CKRecordZone(zoneID: failedRecord.recordID.zoneID)
                 newPendingDatabaseChanges.append(.saveZone(zone))
                 newPendingRecordZoneChanges.append(.saveRecord(failedRecord.recordID))
-                removeRecord(id: recordId)
+                removeSyncRecord(id: recordId)
                 
             case .unknownItem:
+                break
                 // Record no longer exists on the server, must have been deleted by another client. Delete locally
                 // removeRecord(id: recordId)
                 // should also delete assocaited snapshot/incrmental... but that will eventually happen thorugh other means?
                 
             case .networkFailure, .networkUnavailable, .zoneBusy, .serviceUnavailable, .notAuthenticated, .operationCancelled:
-                Logger.automergeCloudKit.debug("Retryable error saving \(failedRecord.recordID): \(failedRecordSave.error)")
+                Logger.automergeCloudKit.info("􀇂 Retryable error saving \(failedRecord.recordID): \(failedRecordSave.error)")
                 
             default:
-                Logger.automergeCloudKit.fault("Unknown error saving record \(failedRecord.recordID): \(failedRecordSave.error)")
+                Logger.automergeCloudKit.error("􀇂 Unknown error saving record \(failedRecord.recordID): \(failedRecordSave.error)")
             }
         }
-        */
+        
+        for failedRecordDelete in sentRecordZoneChanges.failedRecordDeletes {
+            
+        }
+         */
     }
     
     func handleAccountChange(_ accountChange: CKSyncEngine.Event.AccountChange) {

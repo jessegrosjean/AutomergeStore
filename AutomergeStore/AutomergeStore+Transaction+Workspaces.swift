@@ -1,44 +1,47 @@
 import Foundation
 import Automerge
-
+import os.log
 extension AutomergeStore.Transaction {
         
     public func newWorkspace(index: Automerge.Document = .init()) -> Workspace  {
-        let workspaceId = UUID()
-        let workspaceMO = WorkspaceMO(context: context, id: workspaceId, index: index)
-        createDocumentHandle(workspaceId: workspaceMO.id!, documentId: workspaceMO.id!, document: index)
-        workspaceIds.insert(workspaceId)
-        return .init(id: workspaceId, index: index)
+        let id = UUID()
+        Logger.automergeStore.info("􀳃 Creating workspace \(id)")
+        let workspaceMO = WorkspaceMO(context: context, id: id, index: index)
+        createDocumentHandle(workspaceId: workspaceMO.id!, documentId: workspaceMO.id!, automerge: index)
+        return .init(id: id, index: index)
     }
     
     public func importWorkspace(
         id: WorkspaceId,
         index: Automerge.Document?
     ) {
-        guard !contains(workspaceId: id) else {
-            return
-        }
-        _ = WorkspaceMO(
+        Logger.automergeStore.info("􀳃 Importing workspace \(id)")
+
+        let _ = context.fetchWorkspace(id: id) ?? WorkspaceMO(
             context: context,
             id: id,
-            index: index
+            index: nil
         )
+        
+        if let index {
+            try! importDocument(workspaceId: id, documentId: id, automerge: index)
+        }
     }
     
     public func openWorkspace(id: WorkspaceId) throws -> Workspace {
-        guard let workspaceMO = fetchWorkspace(id: id) else {
+        Logger.automergeStore.info("􀳃 Opening workspace \(id)")
+
+        guard let workspaceMO = context.fetchWorkspace(id: id) else {
             throw Error(msg: "Workspace not found: \(id)")
         }
-        
-        guard let document = try openDocument(id: workspaceMO.id!) else {
-            throw Error(msg: "Workspace index document not found: \(id)")
-        }
-        
-        return .init(id: id, index: document.doc)
+        let document = try openDocument(id: workspaceMO.id!)
+        return .init(id: id, index: document.automerge)
     }
     
     public func closeWorkspace(id: WorkspaceId, saveChanges: Bool = true) {
-        guard let chunks = fetchWorkspaceChunks(id: id) else {
+        Logger.automergeStore.info("􀳃 Closing workspace \(id)")
+
+        guard let chunks = context.fetchWorkspaceChunks(id: id) else {
             return
         }
         
@@ -47,27 +50,15 @@ extension AutomergeStore.Transaction {
         }
     }
     
-    public func deleteWorkspace(id: WorkspaceId) {
+    public func deleteWorkspace(id: WorkspaceId) throws {
+        Logger.automergeStore.info("􀳃 Deleting workspace \(id)")
+
+        guard let workspaceMO = context.fetchWorkspace(id: id) else {
+            throw Error(msg: "Workspace not found: \(id)")
+        }
+
         closeWorkspace(id: id, saveChanges: false)
-        let workspaceMO = fetchWorkspace(id: id)!
         context.delete(workspaceMO)
-        workspaceIds.remove(id)
     }
-    
-    func contains(workspaceId: WorkspaceId) -> Bool {
-        workspaceIds.contains(workspaceId)
-    }
-    
-    func fetchWorkspace(id: WorkspaceId) -> WorkspaceMO? {
-        let request = WorkspaceMO.fetchRequest()
-        request.includesPendingChanges = true
-        request.fetchLimit = 1
-        request.predicate = .init(format: "%K == %@", "id", id as CVarArg)
-        return try? context.fetch(request).first
-    }
-    
-    func fetchWorkspaceChunks(id: WorkspaceId) -> Set<ChunkMO>? {
-        fetchWorkspace(id: id)?.chunks as? Set<ChunkMO>
-    }
-    
+        
 }

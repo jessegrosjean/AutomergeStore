@@ -6,19 +6,16 @@ import os.log
 
 extension ChunkMO {
     
-    enum CKRecordState: UInt16 {
-        case needsSend
-        case needsFetch
-    }
-    
     public convenience init(
         context: NSManagedObjectContext,
+        workspaceId: UUID,
         documentId: UUID,
         isSnapshot: Bool,
         data: Data
     ) {
         self.init(context: context)
         self.id = .init()
+        self.workspaceId = workspaceId
         self.documentId = documentId
         self.isSnapshot = isSnapshot
         self.data = data
@@ -31,8 +28,12 @@ extension ChunkMO {
     ) throws {
         self.init(context: context)
 
+        guard let workspaceId = UUID(uuidString: record.recordID.zoneID.zoneName) else {
+            throw AutomergeCloudKitStore.Error(msg: "Invalid workspace id \(record)")
+        }
+
         guard let id = UUID(uuidString: record.recordID.recordName) else {
-            throw AutomergeCloudKitStore.Error(msg: "Invalid name \(record)")
+            throw AutomergeCloudKitStore.Error(msg: "Invalid id \(record)")
         }
         
         guard let documentId = record.encryptedValues[.documentId].map({ UUID(uuidString: $0) }) ?? nil else {
@@ -44,6 +45,7 @@ extension ChunkMO {
         }
 
         self.id = id
+        self.workspaceId = workspaceId
         self.documentId = documentId
         self.isSnapshot = isSnapshot
 
@@ -60,9 +62,9 @@ extension ChunkMO {
     }
     
     var recordID: CKRecord.ID {
-        .init(recordName: id!.uuidString, zoneID: workspace!.zoneID)
+        .init(recordName: id!.uuidString, zoneID: .init(zoneName: workspaceId!.uuidString))
     }
-    
+        
     func preparedRecord(id: CKRecord.ID) -> CKRecord {
         let record = lastKnownRecord ?? .init(recordType: .chunkRecordType, recordID: id)
         let documentId = documentId!.uuidString
@@ -88,7 +90,7 @@ extension ChunkMO {
     
     var lastKnownRecord: CKRecord? {
         get {
-            lastRecord.map {
+            syncRecord.map {
                 do {
                     let unarchiver = try NSKeyedUnarchiver(forReadingFrom: $0)
                     unarchiver.requiresSecureCoding = true
@@ -101,11 +103,24 @@ extension ChunkMO {
         }
         
         set {
-            lastRecord = newValue.map {
+            syncRecord = newValue.map {
                 let archiver = NSKeyedArchiver(requiringSecureCoding: true)
                 $0.encodeSystemFields(with: archiver)
                 return archiver.encodedData
             }
+        }
+    }
+    
+    func setLastKnownRecordIfNewer(_ serverRecord: CKRecord) {
+        let localRecord = lastKnownRecord
+        if let localDate = localRecord?.modificationDate {
+            if let serverDate = serverRecord.modificationDate, localDate < serverDate {
+                lastKnownRecord = serverRecord
+            } else {
+                // The server record is older than the one we already have.
+            }
+        } else {
+            lastKnownRecord = serverRecord
         }
     }
 

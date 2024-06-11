@@ -16,6 +16,7 @@ extension WorkspaceMO {
         if let index {
             addToChunks(ChunkMO(
                 context: context,
+                workspaceId: id,
                 documentId: id,
                 isSnapshot: true,
                 data: index.save())

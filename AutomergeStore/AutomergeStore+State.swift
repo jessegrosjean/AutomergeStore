@@ -1,5 +1,0 @@
-extension AutomergeStore {
-    struct State {
-        
-    }
-}

@@ -5,48 +5,47 @@ import CloudKit
 import os.log
 import PersistentHistoryTrackingKit
 
-// When a transaction fails we can even rollback context and reload document state?
-public protocol Transaction {
-    
-    typealias WorkspaceId = AutomergeStore.WorkspaceId
-    typealias Workspace = AutomergeStore.Workspace
-    typealias DocumentId = AutomergeStore.DocumentId
-    typealias Document = AutomergeStore.Document
-
-    func newWorkspace(index: Automerge.Document) throws -> Workspace
-    func openWorkspace(id: WorkspaceId) throws -> Workspace?
-    func closeWorkspace(id: WorkspaceId, insertingPendingChanges: Bool) throws
-    func deleteWorkspace(id: WorkspaceId) throws
-    func importWorkspace(id: WorkspaceId, index: Automerge.Document) throws -> Workspace
-
-    func newDocument(workspaceId: WorkspaceId, document: Automerge.Document) throws -> Document
-    func openDocument(workspaceId: WorkspaceId, documentId: DocumentId) throws -> Document?
-    func closeDocument(id: DocumentId, insertingPendingChanges: Bool) throws
-    func importDocument(workspaceId: WorkspaceId, documentId: DocumentId, document: Automerge.Document) throws -> Document
-}
-
 public final class AutomergeStore: ObservableObject {
         
-    private static var cachedManagedObjectModel: NSManagedObjectModel?
+    public typealias WorkspaceId = UUID
+    public typealias DocumentId = UUID
 
+    public struct Workspace: Identifiable {
+        public let id: WorkspaceId
+        public let index: Automerge.Document
+    }
+
+    public struct Document: Identifiable {
+        public let id: DocumentId
+        public let workspaceId: WorkspaceId
+        public let automerge: Automerge.Document
+    }
+    
     public struct PersistentHistoryOptions {
         public let appGroup: String?
         public let author: String
         public let allAuthors: [String]
     }
 
+    public struct Error: Sendable, LocalizedError {
+        public var msg: String
+        public var errorDescription: String? { "AutomergeStoreError: \(msg)" }
+
+        public init(msg: String) {
+            self.msg = msg
+        }
+    }
+    
     @Published public var workspaceIds: [WorkspaceId] = []
 
     let container: NSPersistentContainer
-    var context: NSManagedObjectContext { container.viewContext }
-    let persistentHistoryTracking: PersistentHistoryTrackingKit?
-    var documentHandles: [DocumentId : Handle] = [:]
-    let workspaceManagedObjects: CurrentValueSubject<[WorkspaceMO], Never> = .init([])
+    var viewContext: NSManagedObjectContext { container.viewContext }
+    let workspaceMOs: CurrentValueSubject<[WorkspaceMO], Never> = .init([])
+    var documentHandles: [DocumentId : DocumentHandle] = [:]
+    let storeHistory: PersistentHistoryTrackingKit?
     let scheduleSave: PassthroughSubject<Void, Never> = .init()
     var cancellables: Set<AnyCancellable> = []
-    var transaction: UInt8 = 0
-    var transactionSuccesCallbacks: [()->()] = []
-    var transactionRollbackCallbacks: [()->()] = []
+    var syncEngine: CKSyncEngine?
 
     public init(url: URL? = nil, persistentHistoryOptions: PersistentHistoryOptions? = nil) throws {
         container = NSPersistentContainer(
@@ -90,7 +89,7 @@ public final class AutomergeStore: ObservableObject {
 
         if let persistentHistoryOptions {
             container.viewContext.transactionAuthor = persistentHistoryOptions.author
-            persistentHistoryTracking = .init(
+            storeHistory = .init(
                 container: container,
                 currentAuthor: persistentHistoryOptions.author,
                 allAuthors: persistentHistoryOptions.allAuthors,
@@ -100,10 +99,10 @@ public final class AutomergeStore: ObservableObject {
                 autoStart: true
             )
         } else {
-            persistentHistoryTracking = nil
+            storeHistory = nil
         }
 
-        workspaceManagedObjects.value = try context.fetch(WorkspaceMO.fetchRequest())
+        workspaceMOs.value = try viewContext.fetch(WorkspaceMO.fetchRequest())
 
         scheduleSave
             .debounce(
@@ -111,13 +110,16 @@ public final class AutomergeStore: ObservableObject {
                 scheduler: DispatchQueue.main
             ).sink { [weak self] in
                 do {
-                    try self?.saveDocumentChanges()
+                    Logger.automergeStore.info("􀳃 Autosaving...")
+                    try self?.transaction { transaction in
+                        transaction.saveChanges()
+                    }
                 } catch {
-                    print(error)
+                    Logger.automergeStore.error("􀳃 Failed to commit autosave transaction \(error)")
                 }
             }.store(in: &cancellables)
 
-        workspaceManagedObjects.sink { [weak self] workspaceMOs in
+        workspaceMOs.sink { [weak self] workspaceMOs in
             self?.workspaceIds = workspaceMOs.compactMap {
                 if $0.hasValidIndex {
                     return $0.id
@@ -129,73 +131,70 @@ public final class AutomergeStore: ObservableObject {
         
         NotificationCenter.default.publisher(
             for: NSManagedObjectContext.didChangeObjectsNotification,
-            object: context
+            object: viewContext
         ).sink { [weak self] notification in
             self?.managedObjectContextObjectsDidChange(notification)
         }.store(in: &cancellables)
     }
     
-    var synEngineState: CKSyncEngine.State? {
+    public func newWorkspace(index: Automerge.Document = .init()) throws -> Workspace  {
+        try transaction { $0.newWorkspace(index: index) }
+    }
+
+    public func openWorkspace(id: WorkspaceId) throws -> Workspace {
+        try transaction { try $0.openWorkspace(id: id) }
+    }
+
+    public func closeWorkspace(id: WorkspaceId, saveChanges: Bool = true) throws {
+        try transaction { $0.closeWorkspace(id: id, saveChanges: saveChanges) }
+    }
+
+    public func deleteWorkspace(id: WorkspaceId) throws {
+        try transaction { try $0.deleteWorkspace(id: id) }
+    }
+    
+    public func newDocument(workspaceId: WorkspaceId, document: Automerge.Document = .init()) throws -> Document {
+        try transaction { try $0.newDocument(workspaceId: workspaceId, automerge: document) }
+    }
+    
+    public func openDocument(workspaceId: WorkspaceId, documentId: DocumentId) throws -> Document {
+        try transaction { try $0.openDocument(id: documentId) }
+    }
+
+    public func closeDocument(id: DocumentId, saveChanges: Bool = true) throws {
+        try transaction { $0.closeDocument(id: id, saveChanges: saveChanges) }
+    }
+
+}
+
+extension AutomergeStore {
+
+    var syncState: CKSyncEngine.State.Serialization? {
         get {
-            nil
+            try? transaction { $0.syncState }
         }
         set {
-            
+            try? transaction { $0.syncState = newValue }
         }
     }
+    
+    func preparedRecord(id: CKRecord.ID) -> CKRecord? {
+        guard let chunkId = UUID(uuidString: id.recordName) else {
+            return nil
+        }
 
+        return try? transaction {
+            $0.fetchChunk(id: chunkId)?.preparedRecord(id: id)
+        }
+    }
+    
 }
 
 extension AutomergeStore {
     
-    struct Handle {
-        
-        let workspaceId: WorkspaceId
-        let document: Automerge.Document
-        var saved: Set<ChangeHash>
-        var subscriptions: Set<AnyCancellable>
-        
-        init(workspaceId: WorkspaceId, document: Automerge.Document, subscriptions: Set<AnyCancellable>) {
-            self.workspaceId = workspaceId
-            self.document = document
-            self.saved = document.heads()
-            self.subscriptions = subscriptions
-        }
-        
-        mutating func save() -> (heads: Set<ChangeHash>, data: Data)? {
-            guard document.heads() != saved else {
-                return nil
-            }
-            let newSavedHeads = document.heads()
-            // Can this really throw if we are sure heads are correct?
-            let changes = try! document.encodeChangesSince(heads: saved)
-            saved = newSavedHeads
-            return (newSavedHeads, changes)
-        }
-    }
-    
-    func createHandle(workspaceId: WorkspaceId, documentId: DocumentId, document: Automerge.Document) {
-        var documentSubscriptions: Set<AnyCancellable> = []
+    // There can be only one! Otherwise many warnings
+    private static var cachedManagedObjectModel: NSManagedObjectModel?
 
-        document.objectWillChange.sink { [weak self] in
-            self?.scheduleSave.send()
-        }.store(in: &documentSubscriptions)
-        
-        documentHandles[documentId] = .init(
-            workspaceId: workspaceId,
-            document: document,
-            subscriptions: documentSubscriptions
-        )
-    }
-
-    func dropHandle(id: DocumentId) {
-        documentHandles.removeValue(forKey: id)
-    }
-
-}
-
-extension AutomergeStore {
-    
     private static func model(name: String) throws -> NSManagedObjectModel {
         if cachedManagedObjectModel == nil {
             cachedManagedObjectModel = try loadModel(name: name, bundle: Bundle.main)
@@ -214,5 +213,5 @@ extension AutomergeStore {
         
         return model
     }
-
+    
 }
