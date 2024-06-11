@@ -16,7 +16,7 @@ extension ContentView {
 
         init() {
             Task {
-                let container: CKContainer = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeStore")
+                let container = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeStore")
                 let automergeStore = try AutomergeStore()
 
                 self.automergeStore = automergeStore

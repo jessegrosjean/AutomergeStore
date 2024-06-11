@@ -4,11 +4,22 @@
 
 Conflict free local first storage backed by Automerge. Stored locally in CoreData. Optionally synced with CloudKit using CKSyncEngine.
 
-## Why would you use this?
+### Why would you use this?
 
 Use this package to sync generic JSON like data through CloudKit with efficient sync and automatic conflic resolution. I think this is a good base to also support sharing synced data with other users through CKShares, though I have not implemented that.
 
-## How would you use this?
+### Setup instructions
+
+1. Ensure you are logged into your developer account in Xcode with an active membership.
+2. In the “Signing & Capabilities” tab of the Automerge target, ensure your team is selected in the Signing section, and there is a valid container selected under the “iCloud” section.
+2. Ensure that all devices are logged into the same iCloud account.
+
+#### Using your own iCloud container
+
+- Create a new iCloud container through Xcode’s “Signing & Capabilities” tab of the SyncEngine app target.
+- Update the `CKContainer` in ContentView.swift with your new iCloud container identifier.
+
+### How would you use this in code?
 
 ```
 // Create a store
