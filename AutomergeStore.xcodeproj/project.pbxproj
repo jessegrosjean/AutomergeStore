@@ -8,27 +8,23 @@
 
 /* Begin PBXBuildFile section */
 		431842082C111737005F41FC /* AutomergeCloudKitStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431842072C111737005F41FC /* AutomergeCloudKitStoreTests.swift */; };
-		434532B22C127194008FC5A8 /* AutomergeStore+Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532B12C127194008FC5A8 /* AutomergeStore+Transaction.swift */; };
 		434532B42C135114008FC5A8 /* WorkspaceMO+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532B32C135114008FC5A8 /* WorkspaceMO+Extensions.swift */; };
 		434532B62C13514F008FC5A8 /* ChunkMO+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532B52C13514F008FC5A8 /* ChunkMO+Extensions.swift */; };
-		434532BA2C136978008FC5A8 /* AutomergeStore+Transaction+Workspaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532B92C136978008FC5A8 /* AutomergeStore+Transaction+Workspaces.swift */; };
-		434532BC2C13699F008FC5A8 /* AutomergeStore+Transaction+Documents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532BB2C13699F008FC5A8 /* AutomergeStore+Transaction+Documents.swift */; };
 		434532BE2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532BD2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift */; };
-		434532C22C138F2D008FC5A8 /* AutomergeStore+DocumentHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532C12C138F2D008FC5A8 /* AutomergeStore+DocumentHandle.swift */; };
 		434532CA2C18AD81008FC5A8 /* ContentView+ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */; };
 		43A33E102C0F285D00B234F8 /* URL+DevNull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */; };
+		43AA84722C1B013E000E67D5 /* AutomergeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84712C1B013E000E67D5 /* AutomergeStore.swift */; };
+		43AA84742C1B05E2000E67D5 /* AutomergeStore+Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84732C1B05E2000E67D5 /* AutomergeStore+Transaction.swift */; };
+		43AA84762C1B0789000E67D5 /* AutomergeStore+CKSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84752C1B0789000E67D5 /* AutomergeStore+CKSyncEngine.swift */; };
+		43AA84782C1B0E9B000E67D5 /* AutomergeStore+ObjectsDidChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84772C1B0E9A000E67D5 /* AutomergeStore+ObjectsDidChange.swift */; };
 		43CF28612C0CF5A40023FF0A /* AutomergeStoreApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */; };
 		43CF28662C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28642C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld */; };
 		43CF28682C0CF5A40023FF0A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28672C0CF5A40023FF0A /* ContentView.swift */; };
 		43CF286A2C0CF5A50023FF0A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 43CF28692C0CF5A50023FF0A /* Assets.xcassets */; };
 		43CF286E2C0CF5A50023FF0A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 43CF286D2C0CF5A50023FF0A /* Preview Assets.xcassets */; };
 		43CF28782C0CF5A50023FF0A /* AutomergeStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28772C0CF5A50023FF0A /* AutomergeStoreTests.swift */; };
-		43CF28922C0CF9350023FF0A /* AutomergeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28902C0CF9350023FF0A /* AutomergeStore.swift */; };
-		43CF28932C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28912C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift */; };
 		43CF28962C0CF9530023FF0A /* Automerge in Frameworks */ = {isa = PBXBuildFile; productRef = 43CF28952C0CF9530023FF0A /* Automerge */; };
 		43CF28992C0CFD330023FF0A /* PersistentHistoryTrackingKit in Frameworks */ = {isa = PBXBuildFile; productRef = 43CF28982C0CFD330023FF0A /* PersistentHistoryTrackingKit */; };
-		43CF289B2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF289A2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift */; };
-		43CF289D2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF289C2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift */; };
 		43CF289F2C0DFC9B0023FF0A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF289E2C0DFC9B0023FF0A /* Logger.swift */; };
 		43CF28A12C0E0D640023FF0A /* DocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28A02C0E0D640023FF0A /* DocumentView.swift */; };
 /* End PBXBuildFile section */
@@ -46,17 +42,17 @@
 /* Begin PBXFileReference section */
 		431842072C111737005F41FC /* AutomergeCloudKitStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeCloudKitStoreTests.swift; sourceTree = "<group>"; };
 		434532B02C113153008FC5A8 /* AutomergeStore.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = AutomergeStore.xctestplan; sourceTree = "<group>"; };
-		434532B12C127194008FC5A8 /* AutomergeStore+Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Transaction.swift"; sourceTree = "<group>"; };
 		434532B32C135114008FC5A8 /* WorkspaceMO+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceMO+Extensions.swift"; sourceTree = "<group>"; };
 		434532B52C13514F008FC5A8 /* ChunkMO+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChunkMO+Extensions.swift"; sourceTree = "<group>"; };
-		434532B92C136978008FC5A8 /* AutomergeStore+Transaction+Workspaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Transaction+Workspaces.swift"; sourceTree = "<group>"; };
-		434532BB2C13699F008FC5A8 /* AutomergeStore+Transaction+Documents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Transaction+Documents.swift"; sourceTree = "<group>"; };
 		434532BD2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSManagedObjectContext+Fetching.swift"; sourceTree = "<group>"; };
-		434532C12C138F2D008FC5A8 /* AutomergeStore+DocumentHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+DocumentHandle.swift"; sourceTree = "<group>"; };
 		434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView+ViewModel.swift"; sourceTree = "<group>"; };
 		434532CB2C18DF9D008FC5A8 /* NSDocument.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NSDocument.md; sourceTree = "<group>"; };
 		43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+DevNull.swift"; sourceTree = "<group>"; };
 		43A33E142C0F2A3A00B234F8 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		43AA84712C1B013E000E67D5 /* AutomergeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStore.swift; sourceTree = "<group>"; };
+		43AA84732C1B05E2000E67D5 /* AutomergeStore+Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Transaction.swift"; sourceTree = "<group>"; };
+		43AA84752C1B0789000E67D5 /* AutomergeStore+CKSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+CKSyncEngine.swift"; sourceTree = "<group>"; };
+		43AA84772C1B0E9A000E67D5 /* AutomergeStore+ObjectsDidChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+ObjectsDidChange.swift"; sourceTree = "<group>"; };
 		43CF285D2C0CF5A40023FF0A /* AutomergeStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AutomergeStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreApp.swift; sourceTree = "<group>"; };
 		43CF28652C0CF5A40023FF0A /* AutomergeStore.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = AutomergeStore.xcdatamodel; sourceTree = "<group>"; };
@@ -66,13 +62,9 @@
 		43CF286D2C0CF5A50023FF0A /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		43CF28732C0CF5A50023FF0A /* AutomergeStoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AutomergeStoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		43CF28772C0CF5A50023FF0A /* AutomergeStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreTests.swift; sourceTree = "<group>"; };
-		43CF28902C0CF9350023FF0A /* AutomergeStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomergeStore.swift; sourceTree = "<group>"; };
-		43CF28912C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+ObjectsDidChange.swift"; sourceTree = "<group>"; };
-		43CF289A2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeCloudKitStore+SynEngineDelegate.swift"; sourceTree = "<group>"; };
-		43CF289C2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeCloudKitStore.swift; sourceTree = "<group>"; };
 		43CF289E2C0DFC9B0023FF0A /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		43CF28A02C0E0D640023FF0A /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
-		43CF28A22C0E1DE40023FF0A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		43CF28A22C0E1DE40023FF0A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -130,21 +122,17 @@
 		43CF285F2C0CF5A40023FF0A /* AutomergeStore */ = {
 			isa = PBXGroup;
 			children = (
-				43CF28A22C0E1DE40023FF0A /* Info.plist */,
 				43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */,
 				43CF28672C0CF5A40023FF0A /* ContentView.swift */,
 				434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */,
 				43CF28A02C0E0D640023FF0A /* DocumentView.swift */,
-				43CF28902C0CF9350023FF0A /* AutomergeStore.swift */,
-				434532B12C127194008FC5A8 /* AutomergeStore+Transaction.swift */,
-				434532B92C136978008FC5A8 /* AutomergeStore+Transaction+Workspaces.swift */,
-				434532BB2C13699F008FC5A8 /* AutomergeStore+Transaction+Documents.swift */,
-				434532C12C138F2D008FC5A8 /* AutomergeStore+DocumentHandle.swift */,
-				43CF28912C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift */,
-				43CF289C2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift */,
-				43CF289A2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift */,
+				43AA84712C1B013E000E67D5 /* AutomergeStore.swift */,
+				43AA84732C1B05E2000E67D5 /* AutomergeStore+Transaction.swift */,
+				43AA84772C1B0E9A000E67D5 /* AutomergeStore+ObjectsDidChange.swift */,
+				43AA84752C1B0789000E67D5 /* AutomergeStore+CKSyncEngine.swift */,
 				43CF289E2C0DFC9B0023FF0A /* Logger.swift */,
 				43A33E0E2C0F284E00B234F8 /* Extensions */,
+				43CF28A22C0E1DE40023FF0A /* Info.plist */,
 				43CF28692C0CF5A50023FF0A /* Assets.xcassets */,
 				43CF286B2C0CF5A50023FF0A /* AutomergeStore.entitlements */,
 				43CF28642C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld */,
@@ -278,24 +266,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				434532B22C127194008FC5A8 /* AutomergeStore+Transaction.swift in Sources */,
+				43AA84742C1B05E2000E67D5 /* AutomergeStore+Transaction.swift in Sources */,
+				43AA84762C1B0789000E67D5 /* AutomergeStore+CKSyncEngine.swift in Sources */,
+				43AA84782C1B0E9B000E67D5 /* AutomergeStore+ObjectsDidChange.swift in Sources */,
 				43CF28612C0CF5A40023FF0A /* AutomergeStoreApp.swift in Sources */,
+				43AA84722C1B013E000E67D5 /* AutomergeStore.swift in Sources */,
 				43A33E102C0F285D00B234F8 /* URL+DevNull.swift in Sources */,
-				43CF289D2C0DF5DA0023FF0A /* AutomergeCloudKitStore.swift in Sources */,
-				434532BA2C136978008FC5A8 /* AutomergeStore+Transaction+Workspaces.swift in Sources */,
 				434532BE2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift in Sources */,
 				43CF28682C0CF5A40023FF0A /* ContentView.swift in Sources */,
 				43CF289F2C0DFC9B0023FF0A /* Logger.swift in Sources */,
 				434532CA2C18AD81008FC5A8 /* ContentView+ViewModel.swift in Sources */,
-				43CF289B2C0DD7960023FF0A /* AutomergeCloudKitStore+SynEngineDelegate.swift in Sources */,
 				434532B42C135114008FC5A8 /* WorkspaceMO+Extensions.swift in Sources */,
-				43CF28922C0CF9350023FF0A /* AutomergeStore.swift in Sources */,
-				43CF28932C0CF9350023FF0A /* AutomergeStore+ObjectsDidChange.swift in Sources */,
-				434532C22C138F2D008FC5A8 /* AutomergeStore+DocumentHandle.swift in Sources */,
 				43CF28662C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld in Sources */,
 				434532B62C13514F008FC5A8 /* ChunkMO+Extensions.swift in Sources */,
 				43CF28A12C0E0D640023FF0A /* DocumentView.swift in Sources */,
-				434532BC2C13699F008FC5A8 /* AutomergeStore+Transaction+Documents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -468,6 +452,7 @@
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -508,6 +493,7 @@
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

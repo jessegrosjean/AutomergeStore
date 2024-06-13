@@ -1,32 +1,35 @@
-import Combine
+import Foundation
 import CoreData
-import Automerge
 import CloudKit
+import Combine
+import Automerge
 import os.log
-import PersistentHistoryTrackingKit
 
-public final class AutomergeStore: ObservableObject {
-        
+@globalActor public actor AutomergeStoreActor {
+    public static let shared = AutomergeStoreActor()
+    private init() {}
+}
+
+// What if instad make this whole class main actor?
+// Put
+
+
+public actor AutomergeStore: ObservableObject {
+    
     public typealias WorkspaceId = UUID
     public typealias DocumentId = UUID
 
-    public struct Workspace: Identifiable {
+    public struct Workspace: Identifiable, Sendable {
         public let id: WorkspaceId
         public let index: Document
     }
 
-    public struct Document: Identifiable {
+    public struct Document: Identifiable, Sendable {
         public let id: DocumentId
         public let workspaceId: WorkspaceId
         public let automerge: Automerge.Document
     }
     
-    public struct PersistentHistoryOptions {
-        public let appGroup: String?
-        public let author: String
-        public let allAuthors: [String]
-    }
-
     public struct Error: Sendable, LocalizedError {
         public var msg: String
         public var errorDescription: String? { "AutomergeStoreError: \(msg)" }
@@ -36,38 +39,55 @@ public final class AutomergeStore: ObservableObject {
         }
     }
     
-    @Published public var workspaceIds: [WorkspaceId] = []
-
+    struct DocumentHandle {
+        
+        let workspaceId: WorkspaceId
+        let automerge: Automerge.Document
+        var saved: Set<ChangeHash>
+        var automergeSubscription: AnyCancellable
+        
+        init(workspaceId: WorkspaceId, automerge: Automerge.Document, automergeSubscription: AnyCancellable) {
+            self.workspaceId = workspaceId
+            self.automerge = automerge
+            self.saved = automerge.heads()
+            self.automergeSubscription = automergeSubscription
+        }
+        
+        mutating func save() -> (heads: Set<ChangeHash>, data: Data)? {
+            guard automerge.heads() != saved else {
+                return nil
+            }
+            let newSavedHeads = automerge.heads()
+            // Can this really throw if we are sure heads are correct?
+            let changes = try! automerge.encodeChangesSince(heads: saved)
+            saved = newSavedHeads
+            return (newSavedHeads, changes)
+        }
+    }
+    
+    var sync: Sync?
     let container: NSPersistentContainer
-    var viewContext: NSManagedObjectContext { container.viewContext }
+    let context: NSManagedObjectContext
+    let syncActivity: PassthroughSubject<Activity, Never> = .init()
+    let scheduleSave: PassthroughSubject<Void, Never> = .init()
     let workspaceMOs: CurrentValueSubject<[WorkspaceMO], Never> = .init([])
     var documentHandles: [DocumentId : DocumentHandle] = [:]
-    let storeHistory: PersistentHistoryTrackingKit?
-    let scheduleSave: PassthroughSubject<Void, Never> = .init()
     var cancellables: Set<AnyCancellable> = []
-    var syncEngine: CKSyncEngine?
+    var inTransaction: Bool = false
 
-    public init(url: URL? = nil, persistentHistoryOptions: PersistentHistoryOptions? = nil) throws {
+    public init(
+        url: URL? = nil,
+        syncConfiguration: SyncConfiguration? = nil
+    ) async throws {
         container = NSPersistentContainer(
-            name: "AutomergeStore",
-            managedObjectModel: try! Self.model(name: "AutomergeStore")
+            name: "AutomergeStore" //,
+            //managedObjectModel: try await Self.model(name: "AutomergeStore")
         )
         
         let storeDescription = container.persistentStoreDescriptions.first!
         
         if let url {
             storeDescription.url = url
-        }
-        
-        if let _ = persistentHistoryOptions {
-            storeDescription.setOption(
-                true as NSNumber,
-                forKey: NSPersistentHistoryTrackingKey
-            )
-            storeDescription.setOption(
-                true as NSNumber,
-                forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey
-            )
         }
         
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
@@ -84,59 +104,75 @@ public final class AutomergeStore: ObservableObject {
             }
         })
         
-        container.viewContext.automaticallyMergesChangesFromParent = true
-        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-
-        if let persistentHistoryOptions {
-            container.viewContext.transactionAuthor = persistentHistoryOptions.author
-            storeHistory = .init(
-                container: container,
-                currentAuthor: persistentHistoryOptions.author,
-                allAuthors: persistentHistoryOptions.allAuthors,
-                userDefaults: persistentHistoryOptions.appGroup.map { UserDefaults(suiteName: $0)! }  ?? UserDefaults.standard,
-                cleanStrategy: .byNotification(times: 1),
-                uniqueString: "AutomergeStore.",
-                autoStart: true
-            )
-        } else {
-            storeHistory = nil
+        context = container.newBackgroundContext()
+        context.automaticallyMergesChangesFromParent = true
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        workspaceMOs.value = try context.fetch(WorkspaceMO.fetchRequest())
+        
+        if let syncConfiguration {
+            initSyncEngineWithConfiguration(syncConfiguration)
         }
-
-        workspaceMOs.value = try viewContext.fetch(WorkspaceMO.fetchRequest())
-
+        
         scheduleSave
             .debounce(
                 for: .milliseconds(500),
                 scheduler: DispatchQueue.main
             ).sink { [weak self] in
-                do {
+                guard let self else {
+                    return
+                }
+                
+                Task {
                     Logger.automergeStore.info("􀳃 Autosaving...")
-                    try self?.transaction { transaction in
-                        transaction.saveChanges()
+                    do {
+                        try await self.insertPendingChanges()
+                    } catch {
+                        Logger.automergeStore.error("􀳃 Failed to commit autosave transaction \(error)")
                     }
-                } catch {
-                    Logger.automergeStore.error("􀳃 Failed to commit autosave transaction \(error)")
                 }
             }.store(in: &cancellables)
-
-        workspaceMOs.sink { [weak self] workspaceMOs in
-            self?.workspaceIds = workspaceMOs.compactMap {
-                if $0.hasValidIndex {
-                    return $0.id
-                } else {
-                    return nil
-                }
-            }.sorted()
-        }.store(in: &cancellables)
-        
+                
         NotificationCenter.default.publisher(
             for: NSManagedObjectContext.didChangeObjectsNotification,
-            object: viewContext
+            object: context
         ).sink { [weak self] notification in
-            self?.managedObjectContextObjectsDidChange(notification)
+            guard let self else {
+                return
+            }
+
+            let inserted = notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? []
+            let insertedWorkspaces: [SendableWorkspace] = inserted.compactMap { ($0 as? WorkspaceMO).map { .init($0) } }
+            let insertedChunks: [SendableChunk] = inserted.compactMap { ($0 as? ChunkMO).map { .init($0) } }
+            let deleted = notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? []
+            let deletedWorkspaces: [SendableWorkspace] = deleted.compactMap { ($0 as? WorkspaceMO).map { .init($0) } }
+            let deletedChunks: [SendableChunk] = deleted.compactMap { ($0 as? ChunkMO).map { .init($0) } }
+
+            Task {
+                await self.managedObjectContextObjectsDidChange(
+                    insertedWorkspaces,
+                    deletedWorkspaces,
+                    insertedChunks,
+                    deletedChunks
+                )
+            }
         }.store(in: &cancellables)
     }
     
+    public var workspaceIds: AnyPublisher<[WorkspaceId], Never> {
+        workspaceMOs
+            .map { workspaceMOs in
+                workspaceMOs
+                    .filter { $0.hasValidIndex }
+                    .map { $0.id! }
+                    .sorted()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    public var activity: AnyPublisher<Activity, Never> {
+        syncActivity.eraseToAnyPublisher()
+    }
+
     public func newWorkspace(index: Automerge.Document = .init()) throws -> Workspace  {
         try transaction { $0.newWorkspace(index: index) }
     }
@@ -153,7 +189,7 @@ public final class AutomergeStore: ObservableObject {
         try transaction { try $0.deleteWorkspace(id: id) }
     }
     
-    public func newDocument(workspaceId: WorkspaceId, document: Automerge.Document = .init()) throws -> Document {
+    public func newDocument(workspaceId: WorkspaceId, document: Automerge.Document = .init()) throws -> Document  {
         try transaction { try $0.newDocument(workspaceId: workspaceId, automerge: document) }
     }
     
@@ -164,37 +200,20 @@ public final class AutomergeStore: ObservableObject {
     public func closeDocument(id: DocumentId, saveChanges: Bool = true) throws {
         try transaction { $0.closeDocument(id: id, saveChanges: saveChanges) }
     }
-
-}
-
-extension AutomergeStore {
-
-    var syncState: CKSyncEngine.State.Serialization? {
-        get {
-            try? transaction { $0.syncState }
-        }
-        set {
-            try? transaction { $0.syncState = newValue }
-        }
-    }
     
-    func preparedRecord(id: CKRecord.ID) -> CKRecord? {
-        guard let chunkId = UUID(uuidString: id.recordName) else {
-            return nil
-        }
-
-        return try? transaction {
-            $0.fetchChunk(id: chunkId)?.preparedRecord(id: id)
-        }
+    public func insertPendingChanges() throws {
+        try transaction { $0.insertPendingChanges() }
     }
-    
+
 }
 
 extension AutomergeStore {
     
     // There can be only one! Otherwise many warnings
+    @MainActor
     private static var cachedManagedObjectModel: NSManagedObjectModel?
 
+    @MainActor
     private static func model(name: String) throws -> NSManagedObjectModel {
         if cachedManagedObjectModel == nil {
             cachedManagedObjectModel = try loadModel(name: name, bundle: Bundle.main)
@@ -202,6 +221,7 @@ extension AutomergeStore {
         return cachedManagedObjectModel!
     }
     
+    @MainActor
     private static func loadModel(name: String, bundle: Bundle) throws -> NSManagedObjectModel {
         guard let modelURL = bundle.url(forResource: name, withExtension: "momd") else {
             fatalError("failed find momd of name \(name)")

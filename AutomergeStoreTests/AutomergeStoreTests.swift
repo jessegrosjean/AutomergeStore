@@ -3,12 +3,14 @@ import Automerge
 @testable import AutomergeStore
 
 final class AutomergeStoreTests: XCTestCase {
-    
+
+    @MainActor
     func testInit() throws {
         let store = try AutomergeStore(url: .devNull)
         XCTAssert(store.workspaceIds.count == 0)
     }
 
+    @MainActor
     func testNewWorkspace() throws {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()
@@ -16,16 +18,18 @@ final class AutomergeStoreTests: XCTestCase {
         XCTAssertNotNil(store.documentHandles[workspace.id]) // index doc
     }
     
+    @MainActor
     func testModifyWorkspaceDocument() throws {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()
         let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
         try workspace.index.automerge.put(obj: .ROOT, key: "count", value: .Counter(1))
         XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
-        try store.transaction { $0.saveChanges() }
+        try store.transaction { $0.insertPendingChanges() }
         XCTAssertNotEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
 
+    @MainActor
     func testAddDocument() throws {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()
@@ -35,6 +39,7 @@ final class AutomergeStoreTests: XCTestCase {
         XCTAssertNotEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
 
+    @MainActor
     func testCloseDocument() throws {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()
@@ -45,6 +50,7 @@ final class AutomergeStoreTests: XCTestCase {
         XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
 
+    @MainActor
     func testCloseWorkspace() throws {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()
@@ -55,6 +61,7 @@ final class AutomergeStoreTests: XCTestCase {
         XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
     }
 
+    @MainActor
     func testDeleteWorkspace() throws {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()

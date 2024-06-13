@@ -6,68 +6,81 @@ import os.log
 
 extension AutomergeStore {
     
-    func managedObjectContextObjectsDidChange(_ notification: Notification) {
-        // Sync database state changes to any open Automerge.Documents. Also keep track of
-        // WorkspaceMO's so that AutomergeStore can have observable workspaceIds.
-
-        let inserted = notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? []
-        let insertedWorkspaces = inserted.compactMap { $0 as? WorkspaceMO }
-        let insertedChunks = inserted.compactMap { $0 as? ChunkMO }
-
-        let deleted = notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? []
-        let deletedWorkspaces = deleted.compactMap { $0 as? WorkspaceMO }
-        let deletedChunks = deleted.compactMap { $0 as? ChunkMO }
-
-        if !insertedWorkspaces.isEmpty || !deletedWorkspaces.isEmpty || !insertedChunks.isEmpty || !deletedChunks.isEmpty {
-            Logger.automergeStore.info("􀳃 Managed objects did change")
+    struct SendableChunk: Sendable {
+        let id: UUID
+        let workspaceId: UUID
+        let documentId: UUID
+        let isSnapshot: Bool
+        let data: Data
+        var recordId: CKRecord.ID {
+            .init(recordName: id.uuidString, zoneID: .init(zoneName: workspaceId.uuidString))
         }
-
-        if !insertedWorkspaces.isEmpty {
-            Logger.automergeStore.info("  Inserted workspaces \(insertedWorkspaces.map { $0.id })")
-        }
-
-        if !insertedChunks.isEmpty {
-            Logger.automergeStore.info("  Inserted chunks \(insertedChunks.map { $0.id })")
-        }
-
-        if !deletedWorkspaces.isEmpty {
-            Logger.automergeStore.info("  Deleted workspaces \(deletedWorkspaces.map { $0.id })")
-        }
-
-        if !deletedChunks.isEmpty {
-            Logger.automergeStore.info("  Deleted chunks \(deletedChunks.map { $0.id })")
-        }
-
-        updateHandlesForInsertedChunks(insertedChunks)
-        updateHandlesForDeletedChunks(deletedChunks)
-        
-        workspaceMOs.value = try! viewContext.fetch(WorkspaceMO.fetchRequest())
-        
-        if let syncEngine {
-            let databaseChanges: [CKSyncEngine.PendingDatabaseChange] =
-                insertedWorkspaces.map { .saveZone(.init(zoneID: $0.zoneID)) } +
-                deletedWorkspaces.map { .deleteZone($0.zoneID) }
-            
-            let recordZoneChanges: [CKSyncEngine.PendingRecordZoneChange] =
-                insertedChunks.map { .saveRecord($0.recordID) } +
-                deletedChunks.map { .deleteRecord($0.recordID) }
-
-            if !databaseChanges.isEmpty {
-                syncEngine.state.add(pendingDatabaseChanges: databaseChanges)
-                Logger.automergeCloudKit.info("􀇂 scheduleDatabaseChanges \(databaseChanges)")
-            }
-            
-            if !recordZoneChanges.isEmpty {
-                syncEngine.state.add(pendingRecordZoneChanges: recordZoneChanges)
-                Logger.automergeCloudKit.info("􀇂 scheduleRecordZoneChanges \(recordZoneChanges)")
-            }
+        init(_ chunkMO: ChunkMO) {
+            self.id = chunkMO.id!
+            self.workspaceId = chunkMO.workspaceId!
+            self.documentId = chunkMO.documentId!
+            self.isSnapshot = chunkMO.isSnapshot
+            self.data = chunkMO.data!
         }
     }
 
-    func updateHandlesForInsertedChunks(_ insertedChunks: [ChunkMO]) {
+    struct SendableWorkspace: Sendable {
+        let id: UUID
+        let zoneID: CKRecordZone.ID
+        init(_ workspaceMO: WorkspaceMO) {
+            self.id = workspaceMO.id!
+            self.zoneID = workspaceMO.zoneID
+        }
+    }
+
+    func managedObjectContextObjectsDidChange(
+        _ insertedWorkspaces: [SendableWorkspace],
+        _ deletedWorkspaces: [SendableWorkspace],
+        _ insertedChunks: [SendableChunk],
+        _ deletedChunks: [SendableChunk]
+    ) {
+        if !insertedWorkspaces.isEmpty || !deletedWorkspaces.isEmpty || !insertedChunks.isEmpty || !deletedChunks.isEmpty {
+            Logger.automergeStore.info("􀳃 Managed objects did change")
+        }
+        
+        if !insertedWorkspaces.isEmpty {
+            Logger.automergeStore.info("  Inserted workspaces \(insertedWorkspaces.map { $0.id })")
+        }
+        
+        if !insertedChunks.isEmpty {
+            Logger.automergeStore.info("  Inserted chunks \(insertedChunks.map { $0.id })")
+        }
+        
+        if !deletedWorkspaces.isEmpty {
+            Logger.automergeStore.info("  Deleted workspaces \(deletedWorkspaces.map { $0.id })")
+        }
+        
+        if !deletedChunks.isEmpty {
+            Logger.automergeStore.info("  Deleted chunks \(deletedChunks.map { $0.id })")
+        }
+        
+        updateHandles(
+            insertedChunks,
+            deletedChunks
+        )
+        
+        scheduleSyncEngine(
+            insertedWorkspaces,
+            deletedWorkspaces,
+            insertedChunks,
+            deletedChunks
+        )
+        
+        workspaceMOs.value = try! context.fetch(WorkspaceMO.fetchRequest())
+    }
+
+    private func updateHandles(
+        _ insertedChunks: [SendableChunk],
+        _ deletedChunks: [SendableChunk])
+    {
         // Special handling is only required for open documents with chunks inserted
         let effectedDocumentIds: [DocumentId] = insertedChunks.compactMap { chunkMO in
-            if documentHandles.keys.contains(chunkMO.documentId!) {
+            if documentHandles.keys.contains(chunkMO.documentId) {
                 return chunkMO.documentId
             } else {
                 return nil
@@ -77,41 +90,67 @@ extension AutomergeStore {
         // First insert local changes of open documents
         for documentId in effectedDocumentIds {
             if let (_, changes) = documentHandles[documentId]?.save() {
-                let workspaceMO = viewContext.fetchWorkspace(id: documentHandles[documentId]!.workspaceId)!
+                let workspaceMO = context.fetchWorkspace(id: documentHandles[documentId]!.workspaceId)!
                 workspaceMO.addToChunks(ChunkMO(
-                    context: viewContext,
+                    context: context,
                     workspaceId: workspaceMO.id!,
                     documentId: documentId,
                     isSnapshot: false,
                     data: changes
                 ))
             }
-
         }
                 
         // Second apply inserted chunks to any open documents.
         for chunkMO in insertedChunks {
-            let documentId = chunkMO.documentId!
+            let documentId = chunkMO.documentId
             if let document = documentHandles[documentId]?.automerge {
                 do {
-                    try document.applyEncodedChanges(encoded: chunkMO.data!)
+                    try document.applyEncodedChanges(encoded: chunkMO.data)
                 } catch {
                     Logger.automergeStore.error("􀳃 Failed to apply chunk to document: \(error)")
                 }
             }
         }
-    }
-
-    private func updateHandlesForDeletedChunks(_ deletedChunks: [ChunkMO]) {
+        
         // Documents are derived from chunks. When snapshot chunks are deleted need to make
         // sure that the document still exists, and if not then remove that document handle.
-        for documentId in Set(deletedChunks.filter { $0.isSnapshot }.map { $0.documentId! }) {
+        for documentId in Set(deletedChunks.filter { $0.isSnapshot }.map { $0.documentId }) {
             if documentHandles[documentId] != nil {
-                if !viewContext.contains(documentId: documentId) {
+                if !context.contains(documentId: documentId) {
                     documentHandles.removeValue(forKey: documentId)
                 }
             }
         }
     }
-
+    
+    private func scheduleSyncEngine(
+        _ insertedWorkspaces: [SendableWorkspace],
+        _ deletedWorkspaces: [SendableWorkspace],
+        _ insertedChunks: [SendableChunk],
+        _ deletedChunks: [SendableChunk]
+    ) {
+        // TODO: Only want to schedule new changes with sync engine if sync engine event is
+        // not the source of these changes. How to track that?
+        guard let sync else {
+            return
+        }
+        
+        let databaseChanges: [CKSyncEngine.PendingDatabaseChange] =
+            insertedWorkspaces.map { .saveZone(.init(zoneID: $0.zoneID)) } +
+            deletedWorkspaces.map { .deleteZone($0.zoneID) }
+        
+        let recordZoneChanges: [CKSyncEngine.PendingRecordZoneChange] =
+            insertedChunks.map { .saveRecord($0.recordId) } +
+            deletedChunks.map { .deleteRecord($0.recordId) }
+        
+        if databaseChanges.isEmpty {
+            sync.engine.state.add(pendingDatabaseChanges: databaseChanges)
+        }
+        
+        if recordZoneChanges.isEmpty {
+            sync.engine.state.add(pendingRecordZoneChanges: recordZoneChanges)
+        }
+    }
+        
 }

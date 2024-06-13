@@ -2,6 +2,7 @@ import SwiftUI
 import CoreData
 import Automerge
 
+@MainActor
 struct DocumentView: View {
     
     @ObservedObject var document: Automerge.Document

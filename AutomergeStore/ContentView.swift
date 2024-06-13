@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreData
 
+@MainActor
 struct ContentView: View {
 
     @State var viewModel = ViewModel()
@@ -22,11 +23,11 @@ struct ContentView: View {
 
                 ForEach(viewModel.workspaceIds, id: \.self) { id in
                     NavigationLink {
-                        if let index = try? viewModel.openWorkspace(id: id).index {
+                        /*if let index = try? viewModel.openWorkspace(id: id).index {
                             DocumentView(document: index.automerge)
                         } else {
                             Text("Failed to load document")
-                        }
+                        }*/
                     } label: {
                         Text(id.uuidString)
                     }
@@ -59,7 +60,7 @@ struct ContentView: View {
 
     private func deleteWorkspaces(_ deleteIds: [AutomergeStore.WorkspaceId]) {
         withAnimation {
-            viewModel.deleteWorkspaces(deleteIds)
+            //viewModel.deleteWorkspaces(deleteIds)
             selection = []
         }
     }

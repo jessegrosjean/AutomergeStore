@@ -3,40 +3,41 @@ import Combine
 import CloudKit
 
 extension ContentView {
+
+    @MainActor
     @Observable
     class ViewModel {
         
         var workspaceIds: [AutomergeStore.WorkspaceId] = []
-        var activity: AutomergeCloudKitStore.Activity = .waiting
-
+        var activity: AutomergeStore.Activity = .waiting
         var cancellables: Set<AnyCancellable> = []
         
         private var automergeStore: AutomergeStore?
-        private var automergeCloudKit: AutomergeCloudKitStore?
 
         init() {
             Task {
-                let container = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeStore")
-                let automergeStore = try AutomergeStore()
+                //let container = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeStore")
+                let automergeStore = try await AutomergeStore()
 
                 self.automergeStore = automergeStore
-                self.automergeCloudKit = try await .init(
-                    container: container,
-                    database: container.privateCloudDatabase,
-                    automergeStore: automergeStore
-                )
+                //self.automergeCloudKit = try await .init(
+                //    container: container,
+                //    database: container.privateCloudDatabase,
+                //    automergeStore: automergeStore
+                //)
                 
-                self.automergeStore!.$workspaceIds
-                    .receive(on: DispatchQueue.main)
-                    .sink { [weak self] ids in
-                        self?.workspaceIds = ids
-                    }.store(in: &cancellables)
+                /*await MainActor.run {
+                    automergeStore.$workspaceIds
+                        .sink { [weak self] ids in
+                            self?.workspaceIds = ids
+                        }.store(in: &cancellables)
+                }*/
                 
-                self.automergeCloudKit!.activityPublisher
+                /*self.automergeCloudKit!.activityPublisher
                     .receive(on: DispatchQueue.main)
                     .sink { [weak self] activity in
                         self?.activity = activity
-                    }.store(in: &cancellables)
+                    }.store(in: &cancellables)*/
             }
         }
     }
@@ -44,18 +45,34 @@ extension ContentView {
 
 extension ContentView.ViewModel {
 
-    public func newWorkspace() -> AutomergeStore.Workspace {
-        try! automergeStore!.newWorkspace()
+    public func newWorkspace() {
+        Task {
+            do {
+                _ = try await automergeStore?.newWorkspace()
+            } catch {
+            }
+        }
     }
 
-    public func openWorkspace(id: AutomergeStore.WorkspaceId) throws -> AutomergeStore.Workspace {
-        try automergeStore!.openWorkspace(id: id)
+    public func openWorkspace(id: AutomergeStore.WorkspaceId) {
+        Task {
+            do {
+                return try await automergeStore?.openWorkspace(id: id)
+            } catch {
+                return nil
+            }
+        }
     }
 
     public func deleteWorkspaces(_ workspaceIds: [AutomergeStore.WorkspaceId]) {
-        try! automergeStore!.transaction {
-            for each in workspaceIds {
-                try! $0.deleteWorkspace(id: each)
+        Task {
+            do {
+                try await automergeStore?.transaction{ t in
+                    for each in workspaceIds {
+                        try t.deleteWorkspace(id: each)
+                    }
+                }
+            } catch {
             }
         }
     }

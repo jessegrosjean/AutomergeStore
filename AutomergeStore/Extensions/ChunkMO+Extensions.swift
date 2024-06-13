@@ -4,6 +4,18 @@ import CoreData
 import CloudKit
 import os.log
 
+extension CKRecord.RecordType {
+    static let chunkRecordType = "Chunk"
+}
+
+extension CKRecord.FieldKey {
+    // ChunkID and WorkspaceID encoded in CKRecord.ID
+    static let documentId = "documentId"
+    static let isSnapshot = "isSnapshot"
+    static let data = "data"
+    static let asset = "asset"
+}
+
 extension ChunkMO {
     
     public convenience init(
@@ -29,19 +41,19 @@ extension ChunkMO {
         self.init(context: context)
 
         guard let workspaceId = UUID(uuidString: record.recordID.zoneID.zoneName) else {
-            throw AutomergeCloudKitStore.Error(msg: "Invalid workspace id \(record)")
+            throw AutomergeStore.Error(msg: "Invalid workspace id \(record)")
         }
 
         guard let id = UUID(uuidString: record.recordID.recordName) else {
-            throw AutomergeCloudKitStore.Error(msg: "Invalid id \(record)")
+            throw AutomergeStore.Error(msg: "Invalid id \(record)")
         }
         
         guard let documentId = record.encryptedValues[.documentId].map({ UUID(uuidString: $0) }) ?? nil else {
-            throw AutomergeCloudKitStore.Error(msg: "Invalid documentId \(record)")
+            throw AutomergeStore.Error(msg: "Invalid documentId \(record)")
         }
         
         guard let isSnapshot = record.encryptedValues[.isSnapshot] as? Bool else {
-            throw AutomergeCloudKitStore.Error(msg: "Invalid isSnapshot \(record)")
+            throw AutomergeStore.Error(msg: "Invalid isSnapshot \(record)")
         }
 
         self.id = id
@@ -53,11 +65,11 @@ extension ChunkMO {
             self.data = data
         } else if let asset = record.encryptedValues[.asset] as? CKAsset {
             guard let fileURL = asset.fileURL else {
-                throw AutomergeCloudKitStore.Error(msg: "Asset mising fileURL \(record)")
+                throw AutomergeStore.Error(msg: "Asset mising fileURL \(record)")
             }
             self.data = try Data(contentsOf: fileURL)
         } else {
-            throw AutomergeCloudKitStore.Error(msg: "Found no data or asset fields \(record)")
+            throw AutomergeStore.Error(msg: "Found no data or asset fields \(record)")
         }
     }
     
