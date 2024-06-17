@@ -10,24 +10,13 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             List(selection: self.$selection) {
-                Group {
-                    switch viewModel.activity {
-                    case .fetching:
-                        Image(systemName: "icloud.and.arrow.down")
-                    case .sending:
-                        Image(systemName: "icloud.and.arrow.up")
-                    case .waiting:
-                        Image(systemName: "icloud")
-                    }
-                }
-
                 ForEach(viewModel.workspaceIds, id: \.self) { id in
                     NavigationLink {
-                        /*if let index = try? viewModel.openWorkspace(id: id).index {
-                            DocumentView(document: index.automerge)
+                        if let workspace = viewModel.openWorkspace(id: id) {
+                            DocumentView(document: workspace.index.automerge)
                         } else {
-                            Text("Failed to load document")
-                        }*/
+                            Text("Failed to load workspace")
+                        }
                     } label: {
                         Text(id.uuidString)
                     }
@@ -49,6 +38,7 @@ struct ContentView: View {
             }
             #endif
             Text("Select a document")
+            //TodoList(items: $todoItems)
         }
     }
 
@@ -60,7 +50,7 @@ struct ContentView: View {
 
     private func deleteWorkspaces(_ deleteIds: [AutomergeStore.WorkspaceId]) {
         withAnimation {
-            //viewModel.deleteWorkspaces(deleteIds)
+            viewModel.deleteWorkspaces(deleteIds)
             selection = []
         }
     }

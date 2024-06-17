@@ -6,7 +6,7 @@ import CloudKit
 
 extension AutomergeStore {
 
-    public class Transaction {
+    public final class Transaction {
 
         public typealias Workspace = AutomergeStore.Workspace
         public typealias WorkspaceId = AutomergeStore.WorkspaceId
@@ -21,8 +21,7 @@ extension AutomergeStore {
         init(
             context: NSManagedObjectContext,
             scheduleSave: PassthroughSubject<Void, Never>,
-            documentHandles: [DocumentId : DocumentHandle],
-            workspaceIds: Set<WorkspaceId>
+            documentHandles: [DocumentId : DocumentHandle]
         ) {
             self.context = context
             self.scheduleSave = scheduleSave
@@ -30,42 +29,54 @@ extension AutomergeStore {
         }
         
     }
-
+    
     // Transactions save when the closure returns or rollback if there were exceptions
     // when running the closure or when saving. The stores document handles are only
     // updated by the transaction when there are no exceptions.
     public func transaction<R>(
-        _ closure: @Sendable (Transaction) throws -> R
-    ) throws -> R {
+        _ closure: @MainActor (Transaction) throws -> R
+    ) throws -> R where R: Sendable {
         assert(!inTransaction)
         inTransaction = true
         defer { inTransaction = false }
-        
-        do {
-            let transaction = Transaction(
-                context: context,
-                scheduleSave: scheduleSave,
-                documentHandles: documentHandles,
-                workspaceIds: Set(workspaceMOs.value.map { $0.id! })
-            )
 
-            let result = try closure(transaction)
+        return try accessLocalContext { context in
+            do {
+                let transaction = Transaction(
+                    context: context,
+                    scheduleSave: scheduleSave,
+                    documentHandles: documentHandles
+                )
 
-            if context.hasChanges {
-                Logger.automergeStore.info("􀳃 Saving transaction")
-                try context.save()
+                let result = try closure(transaction)
+
+                if context.hasChanges {
+                    Logger.automergeStore.info("􀳃 Saving transaction")
+                    try context.save()
+                }
+
+                documentHandles = transaction.documentHandles
+
+                return result
+            } catch {
+                Logger.automergeStore.info("􀳃 Transaction failed: \(error)")
+                throw error
             }
-            
-            documentHandles = transaction.documentHandles
-            
-            return result
-        } catch {
-            Logger.automergeStore.info("􀳃 Transaction rollback: \(error)")
-            context.rollback()
-            throw error
         }
     }
     
+    func accessLocalContext<R>(
+        _ closure: (NSManagedObjectContext) throws -> R
+    ) rethrows -> R where R: Sendable {
+        // TODO: performAndWait might cause deadlock when used with async swift... though I
+        // haven't been able to reproduce. Instead supposed to use async version of
+        // perform... but that will cause many of my methods to become async, and I'm not
+        // sure that I need/want that. Need someone smarter then me to evaluate.
+        try viewContext.performAndWait {
+            try closure(viewContext)
+        }
+    }
+
 }
 
 extension AutomergeStore.Transaction {
@@ -73,21 +84,27 @@ extension AutomergeStore.Transaction {
     public func newWorkspace(index: Automerge.Document = .init()) -> Workspace  {
         let id = UUID()
         Logger.automergeStore.info("􀳃 Creating workspace \(id)")
-        let workspaceMO = WorkspaceMO(context: context, id: id, index: index)
-        createDocumentHandle(workspaceId: workspaceMO.id!, documentId: workspaceMO.id!, automerge: index)
+        let workspaceMO = WorkspaceMO(context: context, id: id, index: index, synced: false)
+        assert(workspaceMO.id == id)
+        createDocumentHandle(workspaceId: id, documentId: id, automerge: index)
         return .init(id: id, index: .init(id: id, workspaceId: id, automerge: index))
     }
     
-    public func openWorkspace(id: WorkspaceId) throws -> Workspace {
+    public func openWorkspace(id: WorkspaceId) throws -> Workspace? {
         guard let workspaceMO = context.fetchWorkspace(id: id) else {
-            throw Error(msg: "Workspace not found: \(id)")
+            return nil
         }
+        
+        assert(workspaceMO.id == id)
         
         if documentHandles[id] == nil {
             Logger.automergeStore.info("􀳃 Opening workspace \(id)")
         }
         
-        let document = try openDocument(id: workspaceMO.id!)
+        guard let document = try openDocument(id: id) else {
+            return nil
+        }
+        
         return .init(id: id, index: .init(id: id, workspaceId: id, automerge: document.automerge))
     }
     
@@ -117,15 +134,7 @@ extension AutomergeStore.Transaction {
 }
 
 extension AutomergeStore.Transaction {
-    
-    public func contains(documentId: DocumentId) -> Bool {
-        let request = ChunkMO.fetchRequest()
-        request.fetchLimit = 1
-        request.includesPendingChanges = true
-        request.predicate = .init(format: "%K == %@ and isSnapshot == true", "documentId", documentId as CVarArg)
-        return (try? context.count(for: request)) == 1
-    }
-    
+
     public func newDocument(workspaceId: WorkspaceId, automerge: Automerge.Document = .init()) throws -> Document {
         let documentId = UUID()
         
@@ -152,7 +161,7 @@ extension AutomergeStore.Transaction {
         return .init(id: documentId, workspaceId: workspaceMO.id!, automerge: automerge)
     }
     
-    public func openDocument(id: DocumentId) throws -> Document {
+    public func openDocument(id: DocumentId) throws -> Document? {
         if let handle = documentHandles[id] {
             return .init(id: id, workspaceId: handle.workspaceId, automerge: handle.automerge)
         }
@@ -163,7 +172,7 @@ extension AutomergeStore.Transaction {
             let chunks = context.fetchDocumentChunks(id: id),
             let workspaceId = chunks.first?.workspace?.id
         else {
-            throw Error(msg: "Found no chunks for document: \(id)")
+            return nil
         }
         
         let snapshots = chunks.filter { $0.isSnapshot }
@@ -197,7 +206,6 @@ extension AutomergeStore.Transaction {
 
     public func closeDocument(id: DocumentId, saveChanges: Bool = true) {
         Logger.automergeStore.info("􀳃 Closing document \(id)")
-        
         if saveChanges {
             self.insertPendingChanges(id: id)
         }
@@ -209,14 +217,13 @@ extension AutomergeStore.Transaction {
             guard
                 documentId == nil || documentId == eachDocumentId,
                 let document = documentHandles[eachDocumentId]?.automerge,
-                let (_, changes) = documentHandles[eachDocumentId]?.save()
+                let (_, changes) = documentHandles[eachDocumentId]?.savePendingChanges(),
+                var documentChunkMOs = context.fetchDocumentChunks(id: eachDocumentId),
+                let workspaceMO = documentChunkMOs.first?.workspace
             else {
                 continue
             }
             
-            var eachDocumentChunkMOs = context.fetchDocumentChunks(id: eachDocumentId)!
-            let workspaceMO = eachDocumentChunkMOs.first!.workspace!
-
             Logger.automergeStore.info("􀳃 Inserting document changes \(eachDocumentId)")
 
             let newChunk = ChunkMO(
@@ -227,11 +234,11 @@ extension AutomergeStore.Transaction {
                 data: changes
             )
 
-            eachDocumentChunkMOs.append(newChunk)
+            documentChunkMOs.append(newChunk)
             workspaceMO.addToChunks(newChunk)
 
-            let snapshots = eachDocumentChunkMOs.filter { $0.isSnapshot }
-            let deltas = eachDocumentChunkMOs.filter { !$0.isSnapshot }
+            let snapshots = documentChunkMOs.filter { $0.isSnapshot }
+            let deltas = documentChunkMOs.filter { !$0.isSnapshot }
             let snapshotsSize = snapshots.reduce(0, { $0 + $1.size })
             let deltasSize = deltas.reduce(0, { $0 + $1.size })
 
@@ -246,7 +253,7 @@ extension AutomergeStore.Transaction {
                     data: document.save()
                 )
                 
-                for each in eachDocumentChunkMOs {
+                for each in documentChunkMOs {
                     context.delete(each)
                 }
                 

@@ -57,29 +57,4 @@ extension NSManagedObjectContext {
         return try? fetch(request)
     }
 
-    var syncState: CKSyncEngine.State.Serialization? {
-        get {
-            findOrCreateSyncState().data.map {
-                try? JSONDecoder().decode(CKSyncEngine.State.Serialization.self, from: $0)
-            } ?? nil
-        }
-        set {
-            findOrCreateSyncState().data = newValue.map { try? JSONEncoder().encode($0) } ?? nil
-        }
-    }
-    
-    func findOrCreateSyncState() -> SyncStateMO {
-        let request = SyncStateMO.fetchRequest()
-        request.includesPendingChanges = true
-        let syncStates = try! fetch(request)
-        if syncStates.isEmpty {
-            return SyncStateMO(context: self)
-        } else if syncStates.count == 1 {
-            return syncStates.first!
-        } else {
-            Logger.automergeStore.error("􀳃 Found multiple SyncStateMO: \(syncStates)")
-            return syncStates.first!
-        }
-    }
-
 }

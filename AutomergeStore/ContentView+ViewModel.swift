@@ -9,71 +9,56 @@ extension ContentView {
     class ViewModel {
         
         var workspaceIds: [AutomergeStore.WorkspaceId] = []
-        var activity: AutomergeStore.Activity = .waiting
         var cancellables: Set<AnyCancellable> = []
+        var error: Error?
         
-        private var automergeStore: AutomergeStore?
+        private var automergeStore: AutomergeStore
 
         init() {
-            Task {
-                //let container = CKContainer(identifier: "iCloud.com.hogbaysoftware.AutomergeStore")
-                let automergeStore = try await AutomergeStore()
-
-                self.automergeStore = automergeStore
-                //self.automergeCloudKit = try await .init(
-                //    container: container,
-                //    database: container.privateCloudDatabase,
-                //    automergeStore: automergeStore
-                //)
-                
-                /*await MainActor.run {
-                    automergeStore.$workspaceIds
-                        .sink { [weak self] ids in
-                            self?.workspaceIds = ids
-                        }.store(in: &cancellables)
-                }*/
-                
-                /*self.automergeCloudKit!.activityPublisher
-                    .receive(on: DispatchQueue.main)
-                    .sink { [weak self] activity in
-                        self?.activity = activity
-                    }.store(in: &cancellables)*/
-            }
+            automergeStore = try! AutomergeStore(containerOptions: .init(
+                containerIdentifier: "iCloud.com.hogbaysoftware.AutomergeStore",
+                databaseScope: .private
+            ))
+            
+            automergeStore.workspaceIdsPublisher.sink { [weak self] workspaceIds in
+                self?.workspaceIds = workspaceIds.sorted()
+            }.store(in: &cancellables)
         }
     }
 }
 
 extension ContentView.ViewModel {
 
-    public func newWorkspace() {
-        Task {
-            do {
-                _ = try await automergeStore?.newWorkspace()
-            } catch {
-            }
+    public func newWorkspace() -> AutomergeStore.Workspace? {
+        do {
+            return try automergeStore.newWorkspace()
+        } catch {
+            self.error = error
+            return nil
         }
     }
 
-    public func openWorkspace(id: AutomergeStore.WorkspaceId) {
-        Task {
-            do {
-                return try await automergeStore?.openWorkspace(id: id)
-            } catch {
-                return nil
-            }
+    public func openWorkspace(id: AutomergeStore.WorkspaceId) -> AutomergeStore.Workspace? {
+        guard automergeStore.contains(workspaceId: id) else {
+            return nil
+        }
+        do {
+            return try automergeStore.openWorkspace(id: id)
+        } catch {
+            self.error = error
+            return nil
         }
     }
 
     public func deleteWorkspaces(_ workspaceIds: [AutomergeStore.WorkspaceId]) {
-        Task {
-            do {
-                try await automergeStore?.transaction{ t in
-                    for each in workspaceIds {
-                        try t.deleteWorkspace(id: each)
-                    }
+        do {
+            try automergeStore.transaction{ t in
+                for each in workspaceIds {
+                    try t.deleteWorkspace(id: each)
                 }
-            } catch {
             }
+        } catch {
+            self.error = error
         }
     }
 
