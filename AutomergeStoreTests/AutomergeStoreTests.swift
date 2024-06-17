@@ -3,64 +3,93 @@ import Automerge
 @testable import AutomergeStore
 
 final class AutomergeStoreTests: XCTestCase {
-    
-    func testInit() throws {
-        let store = try AutomergeStore(url: .devNull)
-        XCTAssert(store.workspaceIds.count == 0)
+
+    func testInit() async throws {
+        let store = try await AutomergeStore(url: .devNull)
+        let workspaceCount = await store.workspaceIds.count
+        XCTAssert(workspaceCount == 0)
     }
 
-    func testNewWorkspace() throws {
-        let store = try AutomergeStore(url: .devNull)
-        let workspace = try store.newWorkspace()
-        XCTAssert(store.workspaceIds.count == 1)
-        XCTAssertNotNil(store.documentHandles[workspace.id]) // index doc
+    func testNewWorkspace() async  throws {
+        let store = try await AutomergeStore(url: .devNull)
+        let workspace = try await store.newWorkspace()
+        let workspaceCount = await store.workspaceIds.count
+        let handleCount = await store.documentHandles.count
+        let index = await store.documentHandles[workspace.id]
+        XCTAssertEqual(workspaceCount, 1)
+        XCTAssertEqual(handleCount, 1)
+        XCTAssertNotNil(index) // index doc
     }
     
-    func testModifyWorkspaceDocument() throws {
-        let store = try AutomergeStore(url: .devNull)
-        let workspace = try store.newWorkspace()
-        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+    func testModifyWorkspaceDocument() async throws {
+        let store = try await AutomergeStore(url: .devNull)
+        let workspace = try await store.newWorkspace()
+        let workspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
         try workspace.index.automerge.put(obj: .ROOT, key: "count", value: .Counter(1))
-        XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
-        try store.transaction { $0.saveChanges() }
-        XCTAssertNotEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
+        let newWorkspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        XCTAssertEqual(workspaceChunks, newWorkspaceChunks)
+        try await store.transaction { $0.insertPendingChanges() }
+        let newNewWorkspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        XCTAssertNotEqual(workspaceChunks, newNewWorkspaceChunks)
     }
 
-    func testAddDocument() throws {
-        let store = try AutomergeStore(url: .devNull)
-        let workspace = try store.newWorkspace()
-        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
-        let document = try store.newDocument(workspaceId: workspace.id)
-        XCTAssertNotNil(store.documentHandles[document.id])
-        XCTAssertNotEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
+    func testModificationsMergedIntoSnapshot() async throws {
+        let store = try await AutomergeStore(url: .devNull)
+        let workspace = try await store.newWorkspace()
+        
+        for _ in 0..<1000 {
+            try workspace.index.automerge.put(obj: .ROOT, key: "count", value: .Counter(1))
+            try await store.transaction {
+                $0.insertPendingChanges()
+            }
+        }
+
+        let chunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        XCTAssertTrue(chunks!.count < 10)
     }
 
-    func testCloseDocument() throws {
-        let store = try AutomergeStore(url: .devNull)
-        let workspace = try store.newWorkspace()
-        let document = try store.newDocument(workspaceId: workspace.id)
-        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
-        try store.closeDocument(id: document.id)
-        XCTAssertNil(store.documentHandles[document.id])
-        XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
+    func testAddDocument() async throws {
+        let store = try await AutomergeStore(url: .devNull)
+        let workspace = try await store.newWorkspace()
+        let workspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        let document = try await store.newDocument(workspaceId: workspace.id)
+        let handle = await store.documentHandles[document.id]
+        let newWorkspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        XCTAssertNotNil(handle)
+        XCTAssertNotEqual(workspaceChunks, newWorkspaceChunks)
     }
 
-    func testCloseWorkspace() throws {
-        let store = try AutomergeStore(url: .devNull)
-        let workspace = try store.newWorkspace()
-        _ = try store.newDocument(workspaceId: workspace.id)
-        let workspaceChunks = store.viewContext.fetchWorkspaceChunks(id: workspace.id)
-        try store.closeWorkspace(id: workspace.id)
-        XCTAssertEqual(store.documentHandles.count, 0)
-        XCTAssertEqual(workspaceChunks, store.viewContext.fetchWorkspaceChunks(id: workspace.id))
+    func testCloseDocument() async throws {
+        let store = try await AutomergeStore(url: .devNull)
+        let workspace = try await store.newWorkspace()
+        let document = try await store.newDocument(workspaceId: workspace.id)
+        let workspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        try await store.closeDocument(id: document.id)
+        let handle = await store.documentHandles[document.id]
+        let newWorkspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        XCTAssertNil(handle)
+        XCTAssertEqual(workspaceChunks, newWorkspaceChunks)
     }
 
+    func testCloseWorkspace() async throws {
+        let store = try await AutomergeStore(url: .devNull)
+        let workspace = try await store.newWorkspace()
+        _ = try await store.newDocument(workspaceId: workspace.id)
+        let workspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        try await store.closeWorkspace(id: workspace.id)
+        let handleCount = await store.documentHandles.count
+        let newWorkspaceChunks = await store.viewContext.fetchWorkspaceChunks(id: workspace.id)
+        XCTAssertEqual(handleCount, 0)
+        XCTAssertEqual(workspaceChunks, newWorkspaceChunks)
+    }
+
+    @MainActor
     func testDeleteWorkspace() throws {
         let store = try AutomergeStore(url: .devNull)
         let workspace = try store.newWorkspace()
         let document = try store.newDocument(workspaceId: workspace.id)
         try store.deleteWorkspace(id: workspace.id)
-        XCTAssertThrowsError(try store.openDocument(workspaceId: workspace.id, documentId: document.id))
+        XCTAssertNil(try store.openDocument(workspaceId: workspace.id, documentId: document.id))
         XCTAssertEqual(store.documentHandles.count, 0)
         XCTAssertEqual(store.workspaceIds.count, 0)
     }

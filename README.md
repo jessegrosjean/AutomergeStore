@@ -1,6 +1,14 @@
 # AutomergeStore
 
-(In progress, looking for feedback)
+---
+
+Need two types of observation on store:
+
+First, must see all inserts/deletes of Workspaces and Chunks. This is used to update internal state of open document handles. This is used to schedule new CKSyncEngine operations.
+
+Second, must publish valid workspaces in store. A valid workspace must contain an index document. When sync is happening it's possible for a workspace to be invalid... we get notification of the workspace zone being inserted, but don't yet have index document. Use NSFetchedResultsController for this?
+
+---
 
 Conflict free local first storage backed by Automerge. Stored locally in CoreData. Optionally synced with CloudKit using CKSyncEngine.
 
@@ -75,3 +83,16 @@ Things to notice:
 - As you make changes they are stored in small "delta" chunks. These are fast to sync to CloudKit and to apply to other clients.
 
 - Chunks are created or deleted, but never modified. Chunks are only deleted after they are first merged into a new snapshot chunk. Workspaces are grow only data structures and contain a full history of edits.
+
+
+---
+
+Only operations that matter:
+
+WorkspaceZone
+    insert
+    delete
+
+ChunkCKRecord
+    insert
+    delete - Only used for compaction, or when containing workspace is deleted. Anytime a chunk is deleted it must first have been combined to create a new snapshot chunk.
