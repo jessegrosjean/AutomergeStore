@@ -12,10 +12,24 @@
 		434532B62C13514F008FC5A8 /* ChunkMO+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532B52C13514F008FC5A8 /* ChunkMO+Extensions.swift */; };
 		434532BE2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532BD2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift */; };
 		434532CA2C18AD81008FC5A8 /* ContentView+ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */; };
+		436B9A002C2853D4000591C1 /* CloudKitHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 436B99FF2C2853D4000591C1 /* CloudKitHelper.swift */; };
+		436B9A022C28543E000591C1 /* SharePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 436B9A012C28543E000591C1 /* SharePickerView.swift */; };
+		436B9A042C2854BA000591C1 /* SwiftUIHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 436B9A032C2854BA000591C1 /* SwiftUIHelper.swift */; };
+		436B9A062C29E79E000591C1 /* AutomergeStoreAppDelegate_macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 436B9A052C29E79E000591C1 /* AutomergeStoreAppDelegate_macOS.swift */; };
+		436B9A082C29E918000591C1 /* AutomergeStoreAppDelegate_iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 436B9A072C29E918000591C1 /* AutomergeStoreAppDelegate_iOS.swift */; };
 		43A33E102C0F285D00B234F8 /* URL+DevNull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */; };
+		43A709C62C2330D3009C9444 /* AutomergeStore+SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709C52C2330D3009C9444 /* AutomergeStore+SyncStatus.swift */; };
+		43A709C82C233189009C9444 /* CoreDataHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709C72C233189009C9444 /* CoreDataHelper.swift */; };
+		43A709CC2C2340E5009C9444 /* AutomergeStore+Autosave.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709CB2C2340E5009C9444 /* AutomergeStore+Autosave.swift */; };
+		43A709CE2C23521C009C9444 /* AutomergeStore+Sharing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709CD2C23521C009C9444 /* AutomergeStore+Sharing.swift */; };
+		43A709D32C246007009C9444 /* SyncStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709D22C246006009C9444 /* SyncStatusView.swift */; };
+		43A709D92C248196009C9444 /* ModifiedSyncMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709D82C248196009C9444 /* ModifiedSyncMonitor.swift */; };
+		43A709DB2C24AEDA009C9444 /* AutomergeStore+Workspaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709DA2C24AEDA009C9444 /* AutomergeStore+Workspaces.swift */; };
+		43A709DD2C24AF75009C9444 /* AutomergeStore+Documents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709DC2C24AF75009C9444 /* AutomergeStore+Documents.swift */; };
+		43A709DF2C25E6B3009C9444 /* LazyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709DE2C25E6B3009C9444 /* LazyView.swift */; };
+		43A709E12C25ECA2009C9444 /* WorkspaceView+ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A709E02C25ECA2009C9444 /* WorkspaceView+ViewModel.swift */; };
 		43AA84722C1B013E000E67D5 /* AutomergeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84712C1B013E000E67D5 /* AutomergeStore.swift */; };
-		43AA84742C1B05E2000E67D5 /* AutomergeStore+Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84732C1B05E2000E67D5 /* AutomergeStore+Transaction.swift */; };
-		43AA84782C1B0E9B000E67D5 /* AutomergeStore+CoreDataObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84772C1B0E9A000E67D5 /* AutomergeStore+CoreDataObservation.swift */; };
+		43AA84782C1B0E9B000E67D5 /* AutomergeStore+Transactions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA84772C1B0E9A000E67D5 /* AutomergeStore+Transactions.swift */; };
 		43CF28612C0CF5A40023FF0A /* AutomergeStoreApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */; };
 		43CF28662C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28642C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld */; };
 		43CF28682C0CF5A40023FF0A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28672C0CF5A40023FF0A /* ContentView.swift */; };
@@ -24,7 +38,7 @@
 		43CF28782C0CF5A50023FF0A /* AutomergeStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28772C0CF5A50023FF0A /* AutomergeStoreTests.swift */; };
 		43CF28962C0CF9530023FF0A /* Automerge in Frameworks */ = {isa = PBXBuildFile; productRef = 43CF28952C0CF9530023FF0A /* Automerge */; };
 		43CF289F2C0DFC9B0023FF0A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF289E2C0DFC9B0023FF0A /* Logger.swift */; };
-		43CF28A12C0E0D640023FF0A /* DocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28A02C0E0D640023FF0A /* DocumentView.swift */; };
+		43CF28A12C0E0D640023FF0A /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CF28A02C0E0D640023FF0A /* WorkspaceView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,11 +59,25 @@
 		434532BD2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSManagedObjectContext+Fetching.swift"; sourceTree = "<group>"; };
 		434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView+ViewModel.swift"; sourceTree = "<group>"; };
 		434532CB2C18DF9D008FC5A8 /* NSDocument.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NSDocument.md; sourceTree = "<group>"; };
+		436B99FF2C2853D4000591C1 /* CloudKitHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitHelper.swift; sourceTree = "<group>"; };
+		436B9A012C28543E000591C1 /* SharePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePickerView.swift; sourceTree = "<group>"; };
+		436B9A032C2854BA000591C1 /* SwiftUIHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftUIHelper.swift; sourceTree = "<group>"; };
+		436B9A052C29E79E000591C1 /* AutomergeStoreAppDelegate_macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreAppDelegate_macOS.swift; sourceTree = "<group>"; };
+		436B9A072C29E918000591C1 /* AutomergeStoreAppDelegate_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreAppDelegate_iOS.swift; sourceTree = "<group>"; };
 		43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+DevNull.swift"; sourceTree = "<group>"; };
 		43A33E142C0F2A3A00B234F8 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		43A709C52C2330D3009C9444 /* AutomergeStore+SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+SyncStatus.swift"; sourceTree = "<group>"; };
+		43A709C72C233189009C9444 /* CoreDataHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataHelper.swift; sourceTree = "<group>"; };
+		43A709CB2C2340E5009C9444 /* AutomergeStore+Autosave.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Autosave.swift"; sourceTree = "<group>"; };
+		43A709CD2C23521C009C9444 /* AutomergeStore+Sharing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Sharing.swift"; sourceTree = "<group>"; };
+		43A709D22C246006009C9444 /* SyncStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusView.swift; sourceTree = "<group>"; };
+		43A709D82C248196009C9444 /* ModifiedSyncMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModifiedSyncMonitor.swift; sourceTree = "<group>"; };
+		43A709DA2C24AEDA009C9444 /* AutomergeStore+Workspaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Workspaces.swift"; sourceTree = "<group>"; };
+		43A709DC2C24AF75009C9444 /* AutomergeStore+Documents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Documents.swift"; sourceTree = "<group>"; };
+		43A709DE2C25E6B3009C9444 /* LazyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LazyView.swift; sourceTree = "<group>"; };
+		43A709E02C25ECA2009C9444 /* WorkspaceView+ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceView+ViewModel.swift"; sourceTree = "<group>"; };
 		43AA84712C1B013E000E67D5 /* AutomergeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStore.swift; sourceTree = "<group>"; };
-		43AA84732C1B05E2000E67D5 /* AutomergeStore+Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Transaction.swift"; sourceTree = "<group>"; };
-		43AA84772C1B0E9A000E67D5 /* AutomergeStore+CoreDataObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+CoreDataObservation.swift"; sourceTree = "<group>"; };
+		43AA84772C1B0E9A000E67D5 /* AutomergeStore+Transactions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AutomergeStore+Transactions.swift"; sourceTree = "<group>"; };
 		43CF285D2C0CF5A40023FF0A /* AutomergeStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AutomergeStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreApp.swift; sourceTree = "<group>"; };
 		43CF28652C0CF5A40023FF0A /* AutomergeStore.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = AutomergeStore.xcdatamodel; sourceTree = "<group>"; };
@@ -60,7 +88,7 @@
 		43CF28732C0CF5A50023FF0A /* AutomergeStoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AutomergeStoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		43CF28772C0CF5A50023FF0A /* AutomergeStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreTests.swift; sourceTree = "<group>"; };
 		43CF289E2C0DFC9B0023FF0A /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
-		43CF28A02C0E0D640023FF0A /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
+		43CF28A02C0E0D640023FF0A /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
 		43CF28A22C0E1DE40023FF0A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -86,6 +114,7 @@
 		43A33E0E2C0F284E00B234F8 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				43A709D82C248196009C9444 /* ModifiedSyncMonitor.swift */,
 				43A33E0F2C0F285D00B234F8 /* URL+DevNull.swift */,
 				434532B52C13514F008FC5A8 /* ChunkMO+Extensions.swift */,
 				434532B32C135114008FC5A8 /* WorkspaceMO+Extensions.swift */,
@@ -94,15 +123,42 @@
 			path = Extensions;
 			sourceTree = "<group>";
 		};
+		43A709CF2C236A59009C9444 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */,
+				436B9A072C29E918000591C1 /* AutomergeStoreAppDelegate_iOS.swift */,
+				436B9A052C29E79E000591C1 /* AutomergeStoreAppDelegate_macOS.swift */,
+				43CF28672C0CF5A40023FF0A /* ContentView.swift */,
+				434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */,
+				43CF28A02C0E0D640023FF0A /* WorkspaceView.swift */,
+				43A709E02C25ECA2009C9444 /* WorkspaceView+ViewModel.swift */,
+				436B9A012C28543E000591C1 /* SharePickerView.swift */,
+				43A709D22C246006009C9444 /* SyncStatusView.swift */,
+				43A709DE2C25E6B3009C9444 /* LazyView.swift */,
+				436B9A032C2854BA000591C1 /* SwiftUIHelper.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		43A709D52C247D6C009C9444 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		43CF28542C0CF5A40023FF0A = {
 			isa = PBXGroup;
 			children = (
 				434532B02C113153008FC5A8 /* AutomergeStore.xctestplan */,
 				43A33E142C0F2A3A00B234F8 /* README.md */,
 				434532CB2C18DF9D008FC5A8 /* NSDocument.md */,
+				43A709CF2C236A59009C9444 /* App */,
 				43CF285F2C0CF5A40023FF0A /* AutomergeStore */,
 				43CF28762C0CF5A50023FF0A /* AutomergeStoreTests */,
 				43CF285E2C0CF5A40023FF0A /* Products */,
+				43A709D52C247D6C009C9444 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -118,13 +174,15 @@
 		43CF285F2C0CF5A40023FF0A /* AutomergeStore */ = {
 			isa = PBXGroup;
 			children = (
-				43CF28602C0CF5A40023FF0A /* AutomergeStoreApp.swift */,
-				43CF28672C0CF5A40023FF0A /* ContentView.swift */,
-				434532C92C18AD81008FC5A8 /* ContentView+ViewModel.swift */,
-				43CF28A02C0E0D640023FF0A /* DocumentView.swift */,
+				43A709C72C233189009C9444 /* CoreDataHelper.swift */,
+				436B99FF2C2853D4000591C1 /* CloudKitHelper.swift */,
 				43AA84712C1B013E000E67D5 /* AutomergeStore.swift */,
-				43AA84732C1B05E2000E67D5 /* AutomergeStore+Transaction.swift */,
-				43AA84772C1B0E9A000E67D5 /* AutomergeStore+CoreDataObservation.swift */,
+				43A709DA2C24AEDA009C9444 /* AutomergeStore+Workspaces.swift */,
+				43A709DC2C24AF75009C9444 /* AutomergeStore+Documents.swift */,
+				43A709CD2C23521C009C9444 /* AutomergeStore+Sharing.swift */,
+				43A709CB2C2340E5009C9444 /* AutomergeStore+Autosave.swift */,
+				43A709C52C2330D3009C9444 /* AutomergeStore+SyncStatus.swift */,
+				43AA84772C1B0E9A000E67D5 /* AutomergeStore+Transactions.swift */,
 				43CF289E2C0DFC9B0023FF0A /* Logger.swift */,
 				43A33E0E2C0F284E00B234F8 /* Extensions */,
 				43CF28A22C0E1DE40023FF0A /* Info.plist */,
@@ -259,19 +317,33 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				43AA84742C1B05E2000E67D5 /* AutomergeStore+Transaction.swift in Sources */,
-				43AA84782C1B0E9B000E67D5 /* AutomergeStore+CoreDataObservation.swift in Sources */,
+				43A709CE2C23521C009C9444 /* AutomergeStore+Sharing.swift in Sources */,
+				43AA84782C1B0E9B000E67D5 /* AutomergeStore+Transactions.swift in Sources */,
+				43A709C82C233189009C9444 /* CoreDataHelper.swift in Sources */,
 				43CF28612C0CF5A40023FF0A /* AutomergeStoreApp.swift in Sources */,
 				43AA84722C1B013E000E67D5 /* AutomergeStore.swift in Sources */,
 				43A33E102C0F285D00B234F8 /* URL+DevNull.swift in Sources */,
 				434532BE2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift in Sources */,
+				43A709C62C2330D3009C9444 /* AutomergeStore+SyncStatus.swift in Sources */,
+				436B9A062C29E79E000591C1 /* AutomergeStoreAppDelegate_macOS.swift in Sources */,
 				43CF28682C0CF5A40023FF0A /* ContentView.swift in Sources */,
 				43CF289F2C0DFC9B0023FF0A /* Logger.swift in Sources */,
+				436B9A042C2854BA000591C1 /* SwiftUIHelper.swift in Sources */,
+				436B9A022C28543E000591C1 /* SharePickerView.swift in Sources */,
+				43A709CC2C2340E5009C9444 /* AutomergeStore+Autosave.swift in Sources */,
 				434532CA2C18AD81008FC5A8 /* ContentView+ViewModel.swift in Sources */,
 				434532B42C135114008FC5A8 /* WorkspaceMO+Extensions.swift in Sources */,
+				436B9A002C2853D4000591C1 /* CloudKitHelper.swift in Sources */,
+				436B9A082C29E918000591C1 /* AutomergeStoreAppDelegate_iOS.swift in Sources */,
 				43CF28662C0CF5A40023FF0A /* AutomergeStore.xcdatamodeld in Sources */,
 				434532B62C13514F008FC5A8 /* ChunkMO+Extensions.swift in Sources */,
-				43CF28A12C0E0D640023FF0A /* DocumentView.swift in Sources */,
+				43A709E12C25ECA2009C9444 /* WorkspaceView+ViewModel.swift in Sources */,
+				43A709D92C248196009C9444 /* ModifiedSyncMonitor.swift in Sources */,
+				43A709DB2C24AEDA009C9444 /* AutomergeStore+Workspaces.swift in Sources */,
+				43A709DF2C25E6B3009C9444 /* LazyView.swift in Sources */,
+				43A709D32C246007009C9444 /* SyncStatusView.swift in Sources */,
+				43CF28A12C0E0D640023FF0A /* WorkspaceView.swift in Sources */,
+				43A709DD2C24AF75009C9444 /* AutomergeStore+Documents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

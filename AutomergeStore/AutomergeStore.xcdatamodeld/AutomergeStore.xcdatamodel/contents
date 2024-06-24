@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
     <entity name="ChunkMO" representedClassName="ChunkMO" syncable="YES" codeGenerationType="class">
-        <attribute name="data" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="data" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES" allowsCloudEncryption="YES"/>
         <attribute name="documentId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isSnapshot" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
@@ -9,8 +9,17 @@
         <attribute name="workspaceId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <relationship name="workspace" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkspaceMO" inverseName="chunks" inverseEntity="WorkspaceMO"/>
     </entity>
-    <entity name="WorkspaceMO" representedClassName="WorkspaceMO" syncable="YES" codeGenerationType="class">
+    <entity name="ParticipantMO" representedClassName="ParticipantMO" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="ipAddress" optional="YES" attributeType="String"/>
+        <attribute name="lastActive" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="workspace" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkspaceMO" inverseName="participants" inverseEntity="WorkspaceMO"/>
+    </entity>
+    <entity name="WorkspaceMO" representedClassName="WorkspaceMO" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO" preserveAfterDeletion="YES"/>
+        <attribute name="name" optional="YES" attributeType="String" allowsCloudEncryption="YES"/>
         <relationship name="chunks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ChunkMO" inverseName="workspace" inverseEntity="ChunkMO"/>
+        <relationship name="participants" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ParticipantMO" inverseName="workspace" inverseEntity="ParticipantMO"/>
     </entity>
 </model>

@@ -8,20 +8,13 @@ import os.log
 @MainActor
 public final class AutomergeStore: ObservableObject {
     
-    public typealias WorkspaceId = UUID
-    public typealias DocumentId = UUID
+    public static let automergeStoreDidChange = Notification.Name("automergeStoreDidChange")
 
-    public struct Workspace: Identifiable, Sendable {
-        public let id: WorkspaceId
-        public let index: Document
+    public struct StoreDidChangeUserInfoKeys {
+        public static let storeUUID = "storeUUID"
+        public static let transactions = "transactions"
     }
 
-    public struct Document: Identifiable, Sendable {
-        public let id: DocumentId
-        public let workspaceId: WorkspaceId
-        public let automerge: Automerge.Document
-    }
-    
     public struct Error: Sendable, LocalizedError {
         public var msg: String
         public var errorDescription: String? { "AutomergeStoreError: \(msg)" }
@@ -31,28 +24,66 @@ public final class AutomergeStore: ObservableObject {
         }
     }
     
+    @Published public var workspaces: [WorkspaceId : String] = [:]
+    @Published public var syncStatus: SyncStatus = .noNetwork
+
+    struct WorkspaceHandle {
+        let id: WorkspaceId
+        let namePublisher: CurrentValueSubject<String, Never>
+        let indexPublisher: CurrentValueSubject<Automerge.Document?, Never>
+        func workspace(store: AutomergeStore) -> Workspace {
+            .init(
+                id: id,
+                store: store,
+                namePublisher: namePublisher.eraseToAnyPublisher(),
+                indexPublisher: indexPublisher.eraseToAnyPublisher()
+            )
+        }
+    }
+
     struct DocumentHandle {
-        
+        let id: DocumentId
         let workspaceId: WorkspaceId
-        let automerge: Automerge.Document
+        let automergePublisher: CurrentValueSubject<Automerge.Document?, Never>
         var saved: Set<ChangeHash>
         var automergeSubscription: AnyCancellable
         
-        init(workspaceId: WorkspaceId, automerge: Automerge.Document, automergeSubscription: AnyCancellable) {
+        init(
+            id: DocumentId,
+            workspaceId: WorkspaceId,
+            automergePublisher: CurrentValueSubject<Automerge.Document?, Never>,
+            automergeSubscription: AnyCancellable
+        ) {
+            self.id = id
             self.workspaceId = workspaceId
-            self.automerge = automerge
-            self.saved = automerge.heads()
+            self.automergePublisher = automergePublisher
+            self.saved = automergePublisher.value?.heads() ?? []
             self.automergeSubscription = automergeSubscription
         }
         
+        var document: Document {
+            .init(
+                id: id,
+                workspaceId: workspaceId,
+                automergePublisher: automergePublisher.eraseToAnyPublisher()
+            )
+        }
+
         var hasPendingChanges: Bool {
-            automerge.heads() != saved
+            guard let automerge = automergePublisher.value else {
+                return false
+            }
+            return automerge.heads() != saved
         }
         
         mutating func savePendingChanges() -> (heads: Set<ChangeHash>, data: Data)? {
-            guard automerge.heads() != saved else {
+            guard
+                let automerge = automergePublisher.value,
+                automerge.heads() != saved
+            else {
                 return nil
             }
+            
             let newSavedHeads = automerge.heads()
             // Can this really throw if we are sure heads are correct?
             let changes = try! automerge.encodeChangesSince(heads: saved)
@@ -61,164 +92,135 @@ public final class AutomergeStore: ObservableObject {
         }
         
         mutating func applyExternalChanges(_ data: Data) throws {
+            guard let automerge = automergePublisher.value else {
+                return
+            }
             assert(!hasPendingChanges)
             try automerge.applyEncodedChanges(encoded: data)
             saved = automerge.heads()
         }
         
     }
-    
-    let container: NSPersistentCloudKitContainer
-    let viewContext: NSManagedObjectContext
+        
+    let cloudKitContainer: CKContainer?
+    let cloudKitSyncMonitor: SyncMonitor
+    nonisolated public let persistentContainer: NSPersistentCloudKitContainer
+    var privatePersistentStore: NSPersistentStore!
+    var sharedPersistentStore: NSPersistentStore!
+    let historyTokensFolder: URL
     let scheduleSave: PassthroughSubject<Void, Never> = .init()
-    let readyWorkspaceIds: CurrentValueSubject<[WorkspaceId], Never> = .init([])
+    var workspaceHandles: [WorkspaceId : WorkspaceHandle] = [:]
     var documentHandles: [DocumentId : DocumentHandle] = [:]
-    var workspaceMOs: Set<WorkspaceMO> = []
     var cancellables: Set<AnyCancellable> = []
-    var inTransaction: Bool = false
-
+    
     public init(
         url: URL? = nil,
-        containerOptions: NSPersistentCloudKitContainerOptions? = nil
+        containerIdentifier: String?
     ) throws {
-        container = NSPersistentCloudKitContainer(
+        let fileManager = FileManager.default
+        let baseURL = url ?? NSPersistentContainer.defaultDirectoryURL()
+        let (historyTokens, privateStoreFolderURL, sharedStoreFolderURL) = try { () throws -> (URL, URL, URL) in
+            if baseURL == .devNull {
+                return (.devNull, .devNull, .devNull)
+            } else {
+                let storeFolderURL = baseURL.appendingPathComponent("CoreDataStores")
+                let privateStoreFolderURL = storeFolderURL.appendingPathComponent("Private")
+                let sharedStoreFolderURL = storeFolderURL.appendingPathComponent("Shared")
+                let historyTokensFolder = baseURL.appendingPathComponent("CoreDataHistoryTokens")
+                try fileManager.createDirectory(at: historyTokensFolder, withIntermediateDirectories: true, attributes: nil)
+                for folderURL in [privateStoreFolderURL, sharedStoreFolderURL] where !fileManager.fileExists(atPath: folderURL.path) {
+                    try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)
+                }
+                return (historyTokensFolder, privateStoreFolderURL, sharedStoreFolderURL)
+            }
+        }()
+        
+        historyTokensFolder = historyTokens
+        cloudKitContainer = containerIdentifier.map { .init(identifier: $0) }
+        persistentContainer = NSPersistentCloudKitContainer(
             name: "AutomergeStore",
             managedObjectModel: try Self.model(name: "AutomergeStore")
         )
+               
+        cloudKitSyncMonitor = .init(persistentContainer: persistentContainer)
         
-        let storeDescription = container.persistentStoreDescriptions.first!
+        guard
+            let privateStoreDescription = persistentContainer.persistentStoreDescriptions.first,
+            let sharedStoreDescription = privateStoreDescription.copy() as? NSPersistentStoreDescription
+        else {
+            fatalError("#\(#function): Failed to retrieve a persistent store descriptions")
+        }
         
-        if let url {
-            storeDescription.url = url
+        privateStoreDescription.url = privateStoreFolderURL.appendingPathComponent("private.sqlite")
+        privateStoreDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        privateStoreDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        
+        sharedStoreDescription.url = sharedStoreFolderURL.appendingPathComponent("shared.sqlite")
+        sharedStoreDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        sharedStoreDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+
+        if let containerIdentifier {
+            privateStoreDescription.cloudKitContainerOptions = .init(containerIdentifier: containerIdentifier, databaseScope: .private)
+            sharedStoreDescription.cloudKitContainerOptions = .init(containerIdentifier: containerIdentifier, databaseScope: .shared)
+        } else {
+            privateStoreDescription.cloudKitContainerOptions = nil
+            sharedStoreDescription.cloudKitContainerOptions = nil
+        }
+        
+        persistentContainer.persistentStoreDescriptions.append(sharedStoreDescription)
+        
+        persistentContainer.loadPersistentStores { [weak self] (loadedStoreDescription, error) in
+            guard let self else {
+                return
+            }
+            
+            guard error == nil else {
+                fatalError("#\(#function): Failed to load persistent stores:\(error!)")
+            }
+            
+            let storeURL = loadedStoreDescription.url!
+            let storeLastPathComponent = storeURL.lastPathComponent
+
+            if storeLastPathComponent.hasSuffix("private.sqlite") {
+                privatePersistentStore = persistentContainer.persistentStoreCoordinator.persistentStore(for: storeURL)
+            } else if storeLastPathComponent.hasSuffix("shared.sqlite") {
+                sharedPersistentStore = persistentContainer.persistentStoreCoordinator.persistentStore(for: storeURL)
+            }
         }
 
-        storeDescription.cloudKitContainerOptions = containerOptions
-
-        storeDescription.setOption(
-            true as NSNumber,
-            forKey: NSPersistentHistoryTrackingKey
-        )
-        storeDescription.setOption(
-            true as NSNumber,
-            forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey
-        )
+        persistentContainer.viewContext.mergePolicy = NSMergePolicyType.mergeByPropertyObjectTrumpMergePolicyType
+        persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
+        persistentContainer.viewContext.transactionAuthor = TransactionAuthor.appViewContext
         
+        NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: persistentContainer.viewContext).sink { notification in
+            print(notification.userInfo)
+        }.store(in: &cancellables)
+        
+        do {
+          try persistentContainer.viewContext.setQueryGenerationFrom(.current)
+        } catch {
+          fatalError("Failed to pin viewContext to the current generation: \(error)")
+        }
+        
+        initAutosave()
+        initSyncStatus()
+        initTransationProcessing()
+        
+        /*
         #if DEBUG
-        //do {
-            //try container.initializeCloudKitSchema(options: [])
-        //} catch {
-        //    fatalError("Failed initializeCloudKitSchema \(error)")
-        //}
+        do {
+            try persistentContainer.initializeCloudKitSchema(options: [])
+        } catch {
+            Logger.automergeStore.error("􀳃 Failed initializeCloudKitSchema: \(error)")
+        }
         #endif
-        
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-            if let error = error as NSError? {
-                /*
-                 Typical reasons for an error here include:
-                 * The parent directory does not exist, cannot be created, or disallows writing.
-                 * The persistent store is not accessible, due to permissions or data protection when the device is locked.
-                 * The device is out of space.
-                 * The store could not be migrated to the current model version.
-                 Check the error message to determine what the actual problem was.
-                 */
-                fatalError("Unresolved error \(error), \(error.userInfo)")
-            }
-        })
-        
-        viewContext = container.viewContext
-        viewContext.automaticallyMergesChangesFromParent = true
-        viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        workspaceMOs = Set(try viewContext.fetch(WorkspaceMO.fetchRequest()))
-        readyWorkspaceIds.value = workspaceMOs.compactMap { workspaceMO in
-            guard let id = workspaceMO.id, viewContext.contains(documentId: id) else {
-                return nil
-            }
-            return id
-        }
-        
-        try initCoreDataObservation()
-                
-        scheduleSave
-            .debounce(
-                for: .milliseconds(500),
-                scheduler: DispatchQueue.main
-            ).sink { [weak self] in
-                guard let self else {
-                    return
-                }
-                do {
-                    if self.documentHandles.values.first(where: { $0.hasPendingChanges }) != nil {
-                        Logger.automergeStore.info("􀳃 Autosaving...")
-                        try self.insertPendingChanges()
-                    }
-                } catch {
-                    Logger.automergeStore.error("􀳃 Failed to commit autosave transaction \(error)")
-                }
-            }.store(in: &cancellables)
-    }
-
-    public func contains(workspaceId: WorkspaceId) -> Bool {
-        accessLocalContext { context in
-            let request = WorkspaceMO.fetchRequest()
-            request.fetchLimit = 1
-            request.includesPendingChanges = true
-            request.predicate = .init(format: "%K == %@", "id", workspaceId as CVarArg)
-            return (try? context.count(for: request)) == 1
-        }
-    }
-
-    public func contains(documentId: DocumentId) -> Bool {
-        accessLocalContext { context in
-            let request = ChunkMO.fetchRequest()
-            request.fetchLimit = 1
-            request.includesPendingChanges = true
-            request.predicate = .init(format: "%K == %@ and isSnapshot == true", "documentId", documentId as CVarArg)
-            return (try? context.count(for: request)) == 1
-        }
-    }
-
-    public var workspaceIds: [WorkspaceId] {
-        readyWorkspaceIds.value
-    }
-
-    public var workspaceIdsPublisher: AnyPublisher<[WorkspaceId], Never> {
-        readyWorkspaceIds.eraseToAnyPublisher()
-    }
-
-    public func newWorkspace(index: Automerge.Document = .init()) throws -> Workspace  {
-        try transaction { $0.newWorkspace(index: index) }
-    }
-
-    public func openWorkspace(id: WorkspaceId) throws -> Workspace? {
-        try transaction { try $0.openWorkspace(id: id) }
-    }
-
-    public func closeWorkspace(id: WorkspaceId, saveChanges: Bool = true) throws {
-        try transaction { $0.closeWorkspace(id: id, saveChanges: saveChanges) }
-    }
-
-    public func deleteWorkspace(id: WorkspaceId) throws {
-        try transaction { try $0.deleteWorkspace(id: id) }
-    }
-
-    public func isOpen(id: DocumentId) -> Bool  {
-        documentHandles.keys.contains(id)
-    }
-
-    public func newDocument(workspaceId: WorkspaceId, document: Automerge.Document = .init()) throws -> Document  {
-        try transaction { try $0.newDocument(workspaceId: workspaceId, automerge: document) }
+        */
     }
     
-    public func openDocument(workspaceId: WorkspaceId, documentId: DocumentId) throws -> Document? {
-        try transaction { try $0.openDocument(id: documentId) }
-    }
+    var viewContext: NSManagedObjectContext { persistentContainer.viewContext }
 
-    public func closeDocument(id: DocumentId, saveChanges: Bool = true) throws {
-        try transaction { $0.closeDocument(id: id, saveChanges: saveChanges) }
-    }
-    
-    public func insertPendingChanges() throws {
-        try transaction { $0.insertPendingChanges() }
+    public var automergeStoreDidChangePublisher: Publishers.ReceiveOn<NotificationCenter.Publisher, DispatchQueue> {
+        NotificationCenter.default.publisher(for: Self.automergeStoreDidChange, object: self).receive(on: DispatchQueue.main)
     }
 
 }
