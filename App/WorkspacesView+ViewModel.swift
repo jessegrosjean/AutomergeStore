@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 import CloudKit
 
-extension ContentView {
+extension WorkspacesView {
 
     @MainActor
     @Observable
@@ -18,7 +18,6 @@ extension ContentView {
 
         init() {
             automergeStore = AppDelegate.store
-            //automergeStore = try! AutomergeStore(containerIdentifier: "iCloud.com.hogbaysoftware.AutomergeStore")
             
             automergeStore.$workspaces.sink { [weak self] workspaces in
                 self?.workspaces = workspaces
@@ -34,7 +33,7 @@ extension ContentView {
     }
 }
 
-extension ContentView.ViewModel {
+extension WorkspacesView.ViewModel {
 
     public func isShared(workspaceId: AutomergeStore.WorkspaceId) -> Bool {
         automergeStore.isShared(workspaceId: workspaceId)
@@ -61,6 +60,13 @@ extension ContentView.ViewModel {
         }
     }
 
+    public func editWorkspaceShare(id: AutomergeStore.WorkspaceId) {
+        guard let share = try? automergeStore.shares(matching: [id]).values.first else {
+            return
+        }
+        automergeStore.presentCloudSharingController(share: share)
+    }
+    
     public func deleteWorkspaces(_ workspaceIds: [AutomergeStore.WorkspaceId]) {
         do {
             for each in workspaceIds {

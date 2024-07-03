@@ -1,20 +1,12 @@
 # AutomergeStore
 
----
+(work in progress)
 
-Need two types of observation on store:
-
-First, must see all inserts/deletes of Workspaces and Chunks. This is used to update internal state of open document handles. This is used to schedule new CKSyncEngine operations.
-
-Second, must publish valid workspaces in store. A valid workspace must contain an index document. When sync is happening it's possible for a workspace to be invalid... we get notification of the workspace zone being inserted, but don't yet have index document. Use NSFetchedResultsController for this?
-
----
-
-Conflict free local first storage backed by Automerge. Stored locally in CoreData. Optionally synced with CloudKit using CKSyncEngine.
+Conflict free and local first storage. Implemented using Automerge, CoreData, and CloudKit.
 
 ### Why would you use this?
 
-Use this package to sync generic JSON like data through CloudKit with efficient sync and automatic conflic resolution. I think this is a good base to also support sharing synced data with other users through CKShares, though I have not implemented that.
+Use this package to sync generic JSON like data through CloudKit with incremental sync and automatic conflict resolution. Use to sync data between different devices owned by the same iCloud account. Also use to share synced data between multiple iCloud users.
 
 ### Setup instructions
 
@@ -30,21 +22,23 @@ Use this package to sync generic JSON like data through CloudKit with efficient 
 ### How would you use this in code?
 
 ```
+// @MainActor
 // Create a store
-let store = try AutomergeStore()
+let store = try AutomergeStore(containerIdentifier: "iCloud.your.container.identifier")
 // Create a workspace in that store
-let workspace = try store.newWorkspace()
+let workspace = try store.newWorkspace(name: "test")
 // Each workspace has an index Automerge.Document that we can edit...
-try workspace.index.automerge.put(obj: .ROOT, key: "count", value: .Counter(1))
+try workspace.index?.put(obj: .ROOT, key: "count", value: .Counter(1))
 ```
 
-Each store contains workspaces. Each workspace contains at least one (`workspace.index`) automerge document, and potentially more. The intention is that a workspace maps to a user level document. Use the `workspace.index` document for main document content. Potentially add other documents to the workspace for state (like attachments) that you don't always need to load into memory.
+Each store contains workspaces. Each workspace contains at least one (`workspace.index`) automerge document, and potentially others. The intention is that a workspace maps to a user level document. Use the `workspace.index` document for main document content. Potentially add other documents to the workspace for state (like attachments) that you don't always need to load into memory.
 
 ```
 AutomergeStore
     workspaces: [Workspace]
 Workspace
     id: UUID
+    index: Automerge.Document?
     documents: [Document]
 Document
     id: UUID
@@ -60,10 +54,11 @@ The storage model is different then the API model and looks like this:
 ```
 AutomergeStore (CKDatabase when synced to CloudKit)
     workspaces: [Workspace]
-Workspace (CKRecordZone when synced to CloudKit)
+Workspace
     id: UUID
+    name: String
     chunks: [Chunk]
-Chunk (CKRecord when synced to CloudKit)
+Chunk
     id: UUID
     documentId: UUID
     isSnapshot: Bool
@@ -84,15 +79,33 @@ Things to notice:
 
 - Chunks are created or deleted, but never modified. Chunks are only deleted after they are first merged into a new snapshot chunk. Workspaces are grow only data structures and contain a full history of edits.
 
+- The special "index" document associated with each workspace is composed of the set of chunks whose documentId == the workspaces workspaceId.
 
----
+- A workspace always has an associated index document, but in Swift the document is optional. This is because when syncing a workspace to a new device it might be that the workspace record syncs before the index chunk record. So it should be that "eventually" every workspace will have an index document, but it might be nil if it hasn't synced yet.
 
-Only operations that matter:
+## Realtime Sync Notes (Future maybe)
 
-WorkspaceZone
-    insert
-    delete
+CloudKit does not do realtime/collaboration sync well. In my testing it does the sync "correctly", but the timing varies widely. From a second or two, to just not syncing for a while.
 
-ChunkCKRecord
-    insert
-    delete - Only used for compaction, or when containing workspace is deleted. Anytime a chunk is deleted it must first have been combined to create a new snapshot chunk.
+I've come to the conclusion that if you want realtime/collaboration style sync, you will need to use a side channel that delivers sync messages faster. My thought for how to do this is:
+
+- When a computer opens a workspace
+- add it's active "participant" information to the workspace
+- watch the workspaces for other active participants and create peer to peer sync between them
+- In this scenario CoreData/CloudKit is still the source of truth and persistence, the peer to peer is just a way to get sync state distribuated faster.
+- This would mean that CoreData/CloudKit would be syncing some duplicate state, but Automerge is designed to handle that.
+
+## NSDocument Notes (Future maybe)
+
+This example implements "shoebox" style storage.
+
+Question: how to integrate this if you want to use NSDocument storage model instead?
+
+Thoughts:
+
+- Each NSDocument should represent a single workspace
+- Maybe workspace serialization is uses file wrapper storage, not AutomergeStore
+- In anycase must make sure to save WorkspaceId
+- The "magic" part:
+    - When loads document it looks at default existing AutomergeStore and looks for matching document (that is being synced to iCloud). It merges in any changes and then uses AutomergeStore's Automerge.Document instance.
+    - So NSDocument is not dependent on AutomergeStore state, but if it finds matching state then it will use that state and automatically sync.

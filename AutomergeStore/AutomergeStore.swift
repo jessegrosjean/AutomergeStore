@@ -120,19 +120,15 @@ public final class AutomergeStore: ObservableObject {
         let fileManager = FileManager.default
         let baseURL = url ?? NSPersistentContainer.defaultDirectoryURL()
         let (historyTokens, privateStoreFolderURL, sharedStoreFolderURL) = try { () throws -> (URL, URL, URL) in
-            if baseURL == .devNull {
-                return (.devNull, .devNull, .devNull)
-            } else {
-                let storeFolderURL = baseURL.appendingPathComponent("CoreDataStores")
-                let privateStoreFolderURL = storeFolderURL.appendingPathComponent("Private")
-                let sharedStoreFolderURL = storeFolderURL.appendingPathComponent("Shared")
-                let historyTokensFolder = baseURL.appendingPathComponent("CoreDataHistoryTokens")
-                try fileManager.createDirectory(at: historyTokensFolder, withIntermediateDirectories: true, attributes: nil)
-                for folderURL in [privateStoreFolderURL, sharedStoreFolderURL] where !fileManager.fileExists(atPath: folderURL.path) {
-                    try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)
-                }
-                return (historyTokensFolder, privateStoreFolderURL, sharedStoreFolderURL)
+            let storeFolderURL = baseURL.appendingPathComponent("CoreDataStores")
+            let privateStoreFolderURL = storeFolderURL.appendingPathComponent("Private")
+            let sharedStoreFolderURL = storeFolderURL.appendingPathComponent("Shared")
+            let historyTokensFolder = baseURL.appendingPathComponent("CoreDataHistoryTokens")
+            try fileManager.createDirectory(at: historyTokensFolder, withIntermediateDirectories: true, attributes: nil)
+            for folderURL in [privateStoreFolderURL, sharedStoreFolderURL] where !fileManager.fileExists(atPath: folderURL.path) {
+                try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)
             }
+            return (historyTokensFolder, privateStoreFolderURL, sharedStoreFolderURL)
         }()
         
         historyTokensFolder = historyTokens
@@ -191,11 +187,7 @@ public final class AutomergeStore: ObservableObject {
         persistentContainer.viewContext.mergePolicy = NSMergePolicyType.mergeByPropertyObjectTrumpMergePolicyType
         persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
         persistentContainer.viewContext.transactionAuthor = TransactionAuthor.appViewContext
-        
-        NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: persistentContainer.viewContext).sink { notification in
-            print(notification.userInfo)
-        }.store(in: &cancellables)
-        
+                
         do {
           try persistentContainer.viewContext.setQueryGenerationFrom(.current)
         } catch {

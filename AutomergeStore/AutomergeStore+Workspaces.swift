@@ -10,7 +10,12 @@ extension AutomergeStore {
     
     public typealias WorkspaceId = UUID
 
-    public struct Workspace: Identifiable {
+    public struct Workspace: Identifiable, Hashable {
+
+        public static func == (lhs: Workspace, rhs: Workspace) -> Bool {
+            lhs.id == rhs.id && lhs.index === rhs.index
+        }
+        
         public let id: WorkspaceId
         public let namePublisher: AnyPublisher<String, Never>
         public let indexPublisher: AnyPublisher<Automerge.Document?, Never>
@@ -31,10 +36,6 @@ extension AutomergeStore {
             return index
         }
         
-        public func isShared() async -> Bool {
-            await store?.isShared(workspaceId: id) ?? false
-        }
-
         weak var store: AutomergeStore?
         
         init(
@@ -48,6 +49,11 @@ extension AutomergeStore {
             self.namePublisher = namePublisher
             self.indexPublisher = indexPublisher
         }
+        
+        public func hash(into hasher: inout Hasher) {
+            hasher.combine(id)
+        }
+        
     }
     
     public func contains(workspaceId: WorkspaceId) -> Bool {

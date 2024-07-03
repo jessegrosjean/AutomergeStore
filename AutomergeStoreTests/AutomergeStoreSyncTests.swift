@@ -1,4 +1,7 @@
 /*
+ 
+ In theory these should work, but seems impossible to tell CoreData/CloudKit when it should sync, so tests hard to write
+ 
 import CloudKit
 import XCTest
 import Automerge
@@ -18,59 +21,48 @@ final class AutomergeStoreSyncTests: XCTestCase {
         _ = try await newSyncingStore()
     }
 
-    func testStoreWithSentWorkspace() async throws {
-        let store = try await newSyncingStore()
-        _ = try await store.newWorkspace()
-        let databaseChanges = await store.sync!.engine.state.pendingDatabaseChanges
-        let recordZoneChanges = await store.sync!.engine.state.pendingRecordZoneChanges
-        XCTAssertEqual(databaseChanges.count, 1)
-        XCTAssertEqual(recordZoneChanges.count, 1)
-        try await store.sendChanges()
-        let databaseChanges2 = await store.sync!.engine.state.pendingDatabaseChanges
-        let recordZoneChanges2 = await store.sync!.engine.state.pendingRecordZoneChanges
-        XCTAssertEqual(databaseChanges2.count, 0)
-        XCTAssertEqual(recordZoneChanges2.count, 0)
-    }
-
     func testNewSyncedStores() async throws {
         _ = try await newSyncedStores()
     }
 
     func testSyncChangesAToB() async throws {
-        let (aStore, aWorkspace, bStore, bWorkspace) = try await newSyncedStores()
-        try aWorkspace.index!.automerge.increment(obj: .ROOT, key: "count", by: 1)
+        let (aStore, aWorkspace, _, bWorkspace) = try await newSyncedStores()
+        try aWorkspace.index!.increment(obj: .ROOT, key: "count", by: 1)
         try await aStore.insertPendingChanges()
-        try await aStore.sendChanges()
-        try await bStore.fetchChanges()
-        XCTAssertEqual(try bWorkspace.index!.automerge.get(obj: .ROOT, key: "count"), .Scalar(.Counter(2)))
+        try await aStore.viewContext.save()
+        
+        while true {
+            try! await Task.sleep(nanoseconds: 1_000_000_000)
+            if try bWorkspace.index?.get(obj: .ROOT, key: "count") == .Scalar(.Counter(2)) {
+                break
+            }
+        }
     }
 
     func testMergeChangesBetweenAAndB() async throws {
         let (aStore, aWorkspace, bStore, bWorkspace) = try await newSyncedStores()
 
-        try aWorkspace.index!.automerge.increment(obj: .ROOT, key: "count", by: 1)
-        try bWorkspace.index!.automerge.increment(obj: .ROOT, key: "count", by: 1)
-        try await aStore.insertPendingChanges()
-        try await bStore.insertPendingChanges()
-        try await aStore.sendChanges()
-        try await bStore.sendChanges()
+        try aWorkspace.index!.increment(obj: .ROOT, key: "count", by: 1)
+        try bWorkspace.index!.increment(obj: .ROOT, key: "count", by: 1)
 
-        try await aStore.fetchChanges()
-        try await bStore.fetchChanges()
-        XCTAssertEqual(try aWorkspace.index!.automerge.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
-        XCTAssertEqual(try bWorkspace.index!.automerge.get(obj: .ROOT, key: "count"), .Scalar(.Counter(3)))
+        while true {
+            try! await Task.sleep(nanoseconds: 1_000_000_000)
+            let aCount = try aWorkspace.index?.get(obj: .ROOT, key: "count")
+            let bCount = try bWorkspace.index?.get(obj: .ROOT, key: "count")
+
+            if
+                aCount == .Scalar(.Counter(3)) &&
+                bCount == .Scalar(.Counter(3))
+            {
+                break
+            }
+        }
     }
 
     func newSyncingStore() async throws -> AutomergeStore {
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let url = temporaryDirectoryURL.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        let automergeStore = try await AutomergeStore(url: url, syncConfiguration: .init(
-            container: container,
-            database: container.privateCloudDatabase,
-            automaticallySync: false
-        ))
-        try await automergeStore.fetchChanges()
-        return automergeStore
+        return try await AutomergeStore(url: url, containerIdentifier: container.containerIdentifier)
     }
 
     func newSyncedStores() async throws -> (
@@ -84,26 +76,25 @@ final class AutomergeStoreSyncTests: XCTestCase {
 
         let aIndex = Automerge.Document()
         try aIndex.put(obj: .ROOT, key: "count", value: .Counter(1))
-        let aWorkspace = try await aStore.newWorkspace(index: aIndex)
-        XCTAssert(aWorkspace.index!.automerge === aIndex)
+        let aWorkspace = try await aStore.newWorkspace(name: "test", index: aIndex)
+        XCTAssert(aWorkspace.index === aIndex)
         
-        try await aStore.insertPendingChanges()
-        try await aStore.sendChanges()
-        
+        try await aStore.viewContext.save()
+                
         let noWorspace = try? await bStore.openWorkspace(id: aWorkspace.id)
         XCTAssertNil(noWorspace)
-        try await bStore.fetchChanges()
-        try! await Task.sleep(nanoseconds: 1_000_000)
+        
+        while true {
+            try! await Task.sleep(nanoseconds: 1_000_000_000)
 
-        let bWorkspace = try await bStore.openWorkspace(id: aWorkspace.id)
-        XCTAssertNotNil(bWorkspace)
-        
-        XCTAssertEqual(
-            try bWorkspace.index!.automerge.get(obj: .ROOT, key: "count"),
-            .Scalar(.Counter(1))
-        )
-        
-        return (aStore, aWorkspace, bStore, bWorkspace)
+            if let bWorkspace = try await bStore.openWorkspace(id: aWorkspace.id), let index = bWorkspace.index {
+                XCTAssertEqual(
+                    try index.get(obj: .ROOT, key: "count"),
+                    .Scalar(.Counter(1))
+                )
+                return (aStore, aWorkspace, bStore, bWorkspace)
+            }
+        }
     }
     
 }

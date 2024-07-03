@@ -1,5 +1,3 @@
-#if os(macOS)
-
 import CoreData
 import CloudKit
 import AppKit
@@ -23,6 +21,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
 }
-
-#endif
-

@@ -1,5 +1,11 @@
 import SwiftUI
 
+#if os(iOS)
+typealias ApplicationDelegateAdaptor = UIApplicationDelegateAdaptor
+#elseif os(macOS)
+typealias ApplicationDelegateAdaptor = NSApplicationDelegateAdaptor
+#endif
+
 @main
 struct AutomergeStoreApp: App {
     
@@ -8,6 +14,9 @@ struct AutomergeStoreApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+        }
+        .commands {
+            SidebarCommands()
         }
     }
 }

@@ -126,26 +126,7 @@ extension AutomergeStore {
         }
         return participants
     }
-    
-    func share(with title: String) -> CKShare? {
-        let stores = [privatePersistentStore!, sharedPersistentStore!]
-        let shares = try? persistentContainer.fetchShares(in: stores)
-        let share = shares?.first(where: { $0.title == title })
-        return share
-    }
-    
-    func shareTitles() -> [String] {
-        let stores = [privatePersistentStore!, sharedPersistentStore!]
-        let shares = try? persistentContainer.fetchShares(in: stores)
-        return shares?.map { $0.title } ?? []
-    }
-    
-    func isParticipatingShare(with title: String) -> Bool {
-        let shares = try? persistentContainer.fetchShares(in: [sharedPersistentStore])
-        let share = shares?.first(where: { $0.title == title })
-        return share == nil ? false : true
-    }
-    
+        
     public func shares(matching workspaceIds: [WorkspaceId]) throws -> [NSManagedObjectID: CKShare] {
         try persistentContainer.fetchShares(matching: workspaceIds.compactMap {
             viewContext.fetchWorkspace(id: $0)?.objectID

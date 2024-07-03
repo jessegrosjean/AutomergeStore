@@ -1,6 +1,10 @@
 #  NSDocument Notes
 
-By default this is "shoebox" style storage, files written to your application container. Question, how to integrate this with NSDocument if you would like to use that application model instead?
+By default this is "shoebox" style storage, files written to your application container.
+
+Question: how to integrate this with NSDocument if you would like to use that application model instead?
+
+Thoughts:
 
 - Based of Workspace model (so N Automerge.Document with one special index document)
 - Not based on AutomergeStore, instead uses file wrapper storage

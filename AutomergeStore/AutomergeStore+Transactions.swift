@@ -6,7 +6,6 @@ extension AutomergeStore {
 
     struct TransactionAuthor {
         static let appViewContext = "appViewContext"
-        static let appBackgroundContext = "appBackgroundContext"
     }
 
     func initTransationProcessing() {
@@ -14,11 +13,7 @@ extension AutomergeStore {
         fetchRequest.affectedStores = [privatePersistentStore, sharedPersistentStore]
         fetchRequest.propertiesToFetch = ["id", "name"]
         let workspaceMOs = (try? viewContext.fetch(fetchRequest)) ?? []
-        
-        
-        // Got a dup here after sharing?
-        // Maybe same workspace ends up in private and shared stores?
-        
+                
         workspaces = .init(uniqueKeysWithValues: workspaceMOs.compactMap {
             guard let id = $0.id, let name = $0.name else {
                 return nil
@@ -33,7 +28,6 @@ extension AutomergeStore {
             object: persistentContainer.persistentStoreCoordinator
         )
     }
-    
     
     @objc func storeRemoteChange(_ notification: Notification) {
         guard
@@ -51,7 +45,7 @@ extension AutomergeStore {
             return
         }
         
-        let fetchContext = persistentContainer.newTaskContext()
+        let fetchContext = persistentContainer.newBackgroundContext()
         let transactions = fetchContext.performAndWait {
             fetchTransactions(store: store, context: fetchContext, historyTokenFolder: historyTokensFolder)
         }

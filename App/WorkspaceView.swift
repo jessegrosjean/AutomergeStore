@@ -10,54 +10,22 @@ struct WorkspaceView: View {
     var body: some View {
         Group {
             if viewModel.index != nil {
-                Button(action: { viewModel.increment() }) {
-                    Label("Add", systemImage: "plus")
-                }
-                Text("Count: \(viewModel.count)")
-                Button(action: { viewModel.descrement() }) {
-                    Label("Subtract", systemImage: "minus")
-                }
-
-                Button(action: { viewModel.createShare() }) {
-                    Text("Create Share")
-                }
-
-                if let share = viewModel.share {
-                    Button(action: { viewModel.editShare(share) }) {
-                        Text("Edit Share")
+                HStack {
+                    Button(action: viewModel.descrement) {
+                        Image(systemName: "minus")
                     }
-
-                    Button(action: { viewModel.deleteShare(share) }) {
-                        Text("Delete Share")
-                    }
-
-                    Section {
-                        if let participants = viewModel.shareParticipants {
-                            ForEach(participants, id: \.self) { participant in
-                                VStack(alignment: .leading) {
-                                    Text(participant.userIdentity.nameComponents?.formatted(.name(style: .long)) ?? "")
-                                        .font(.headline)
-                                    Text("Acceptance Status: \(AutomergeStore.string(for: participant.acceptanceStatus))")
-                                        .font(.subheadline)
-                                    Text("Role: \(AutomergeStore.string(for: participant.role))")
-                                        .font(.subheadline)
-                                    Text("Permissions: \(AutomergeStore.string(for: participant.permission))")
-                                        .font(.subheadline)
-                                }
-                                .padding(.bottom, 8)
-                            }
-                        }
-                    } header: {
-                        Text("Participants")
-                    }
-                } else {
-                    ShareLink(item: viewModel.workspace, preview: SharePreview("A workspace to share")) {
-                        Text("Share")
+                    Text("\(viewModel.count)")
+                    Button(action: viewModel.increment) {
+                        Image(systemName: "plus")
                     }
                 }
-                //presentCloudSharingController
             } else {
                 Text("Index Loading...")
+            }
+        }
+        .toolbar {
+            ShareLink(item: viewModel.workspace, preview: SharePreview(viewModel.workspace.name)) {
+                Label("Share Workspace", systemImage: "square.and.arrow.up")
             }
         }
     }

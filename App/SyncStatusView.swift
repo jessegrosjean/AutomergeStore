@@ -6,10 +6,10 @@ struct SyncStatusView: View {
     let syncStatus: AutomergeStore.SyncStatus
 
     var body: some View {
-        HStack {
-            Image(systemName: syncStatus.symbolName)
-                .foregroundColor(symbolColor)
-            Text(userDescription)
+        if syncStatus.inProgress {
+            ProgressView().controlSize(.small)
+        } else if syncStatus.isBroken {
+            Image(systemName: "exclamationmark.arrow.triangle.2.circlepath")
         }
     }
     
