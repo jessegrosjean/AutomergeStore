@@ -49,6 +49,8 @@ You can create, open, and delete workspace. You can create and open documents. Y
 
 ## Implementation
 
+The implementation uses CoreData/[NSPersistentCloudKitContainer](https://developer.apple.com/documentation/technotes/tn3163-understanding-the-synchronization-of-nspersistentcloudkitcontainer)/CloudKit to store and sync the data. It uses [Automerge](https://github.com/automerge/automerge-swift) to combine/merge that data.
+
 The storage model is different then the API model and looks like this:
 
 ```

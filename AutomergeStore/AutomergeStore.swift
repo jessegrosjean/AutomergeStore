@@ -137,7 +137,7 @@ public final class AutomergeStore: ObservableObject {
             name: "AutomergeStore",
             managedObjectModel: try Self.model(name: "AutomergeStore")
         )
-               
+        
         cloudKitSyncMonitor = .init(persistentContainer: persistentContainer)
         
         guard

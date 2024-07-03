@@ -53,7 +53,6 @@
 		434532B32C135114008FC5A8 /* WorkspaceMO+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceMO+Extensions.swift"; sourceTree = "<group>"; };
 		434532B52C13514F008FC5A8 /* ChunkMO+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChunkMO+Extensions.swift"; sourceTree = "<group>"; };
 		434532BD2C1373D6008FC5A8 /* NSManagedObjectContext+Fetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSManagedObjectContext+Fetching.swift"; sourceTree = "<group>"; };
-		434532CB2C18DF9D008FC5A8 /* NSDocument.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NSDocument.md; sourceTree = "<group>"; };
 		436B99FF2C2853D4000591C1 /* CKShare+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CKShare+Extensions.swift"; sourceTree = "<group>"; };
 		436B9A052C29E79E000591C1 /* AutomergeStoreAppDelegate_macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreAppDelegate_macOS.swift; sourceTree = "<group>"; };
 		436B9A072C29E918000591C1 /* AutomergeStoreAppDelegate_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomergeStoreAppDelegate_iOS.swift; sourceTree = "<group>"; };
@@ -145,7 +144,6 @@
 			children = (
 				434532B02C113153008FC5A8 /* AutomergeStore.xctestplan */,
 				43A33E142C0F2A3A00B234F8 /* README.md */,
-				434532CB2C18DF9D008FC5A8 /* NSDocument.md */,
 				43A709CF2C236A59009C9444 /* App */,
 				43CF285F2C0CF5A40023FF0A /* AutomergeStore */,
 				43CF28762C0CF5A50023FF0A /* AutomergeStoreTests */,
